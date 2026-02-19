@@ -13,6 +13,7 @@ use crate::exposure;
 use crate::margin;
 
 /// Maximum position size per account tier per spec §5.14.2
+#[allow(dead_code)]
 const POSITION_LIMIT_RETAIL: u64 = 100_000;
 const POSITION_LIMIT_DEFAULT: u64 = 1_000_000;
 
@@ -132,7 +133,7 @@ fn position_limit(account: &Account) -> Decimal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::account::{Account, AccountType, Balance};
+    use types::account::{Account, AccountStatus, AccountType, Balance};
     use types::ids::{AccountId, MarketId};
     use types::numeric::{Price, Quantity};
     use types::order::{Order, Side, TimeInForce};
