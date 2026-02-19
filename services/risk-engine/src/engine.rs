@@ -5,7 +5,6 @@
 
 use rust_decimal::Decimal;
 use types::account::Account;
-use types::ids::AccountId;
 use types::order::Order;
 use types::position::Position;
 use types::risk::RiskCheckResult;

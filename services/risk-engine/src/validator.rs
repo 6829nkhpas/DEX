@@ -4,7 +4,7 @@
 //! and position limits per specs §5.3.1, §5.4, and §9.3.6.
 
 use rust_decimal::Decimal;
-use types::account::{Account, AccountStatus, AccountType};
+use types::account::{Account, AccountType};
 use types::order::Order;
 use types::position::Position;
 use types::risk::RiskCheckResult;

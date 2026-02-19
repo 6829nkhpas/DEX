@@ -582,6 +582,7 @@ dependencies = [
  "serde",
  "thiserror",
  "types",
+ "uuid",
 ]
 
 [[package]]

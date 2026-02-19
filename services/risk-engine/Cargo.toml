@@ -8,6 +8,7 @@ types = { path = "../../libs/types" }
 rust_decimal = "1.33"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
+uuid = { version = "1.8", features = ["v7"] }
 
 [dev-dependencies]
 proptest = "1.4"
