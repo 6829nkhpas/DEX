@@ -37,6 +37,7 @@
 
 pub mod events;
 pub mod ingestion;
+pub mod order_book;
 
 // Library version
 pub const SERVICE_VERSION: &str = "0.1.0";
