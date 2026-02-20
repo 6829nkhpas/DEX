@@ -1,0 +1,40 @@
+[package]
+name = "market-data"
+version = "0.1.0"
+edition = "2021"
+description = "Market Data Service for the distributed exchange"
+
+[dependencies]
+# Core types library (frozen)
+types = { path = "../../libs/types" }
+
+# Deterministic decimal arithmetic
+rust_decimal = { version = "1.36", features = ["serde", "serde-str"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# UUID v7 for deterministic IDs
+uuid = { version = "1.11", features = ["v7", "serde"] }
+
+# Error handling
+thiserror = "1.0"
+
+# Structured logging
+tracing = "0.1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP/WS framework
+axum = { version = "0.7", features = ["ws"] }
+
+# Checksum
+sha2 = "0.10"
+
+[dev-dependencies]
+proptest = "1.5"
+criterion = "0.5"
+tracing-subscriber = "0.3"
+tokio = { version = "1", features = ["full", "test-util"] }
