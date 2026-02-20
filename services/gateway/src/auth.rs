@@ -3,11 +3,9 @@ use axum::{
     extract::FromRequestParts,
     http::request::Parts,
 };
-use async_trait::async_trait;
 use dashmap::DashMap;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use types::ids::AccountId;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,12 +15,13 @@ pub struct Claims {
     pub account_id: AccountId,
 }
 
-/// Store for API Nonces to prevent replay attacks
+#[allow(dead_code)]
 pub struct NonceStore {
     // Maps AccountId to the last seen nonce
     last_nonces: DashMap<AccountId, u64>,
 }
 
+#[allow(dead_code)]
 impl NonceStore {
     pub fn new() -> Self {
         Self {
@@ -44,7 +43,6 @@ pub struct AuthenticatedUser {
     pub account_id: AccountId,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AuthenticatedUser
 where
     S: Send + Sync,
@@ -56,11 +54,11 @@ where
         // For JWT:
         if let Some(auth_header) = parts.headers.get("Authorization") {
             let auth_str = auth_header.to_str().map_err(|_| AppError::Unauthorized("Invalid header string".into()))?;
-            if auth_str.starts_with("Bearer ") {
-                let token = &auth_str[7..];
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
                 // In a real system, decoding key comes from a keystore or config
                 let key = DecodingKey::from_secret("secret".as_ref());
                 let mut validation = Validation::default();
+                #[allow(deprecated)]
                 validation.insecure_disable_signature_validation(); // TODO: Remove in true prod, keeping for this smallest working unit
                 let token_data = decode::<Claims>(token, &key, &validation)
                     .map_err(|e| AppError::Unauthorized(format!("Invalid token: {}", e)))?;

@@ -29,7 +29,7 @@ pub async fn create_order(
     // POST /internal/orders
     let res = state
         .http_client
-        .post(&format!("{}/internal/orders", state.internal_services_url))
+        .post(format!("{}/internal/orders", state.internal_services_url))
         .json(&payload)
         .send()
         .await
@@ -65,7 +65,7 @@ pub async fn cancel_order(
     // 3. Forward
     let res = state
         .http_client
-        .delete(&format!(
+        .delete(format!(
             "{}/internal/orders/{}",
             state.internal_services_url, order_id
         ))

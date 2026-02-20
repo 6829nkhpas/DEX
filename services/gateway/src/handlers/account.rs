@@ -25,7 +25,7 @@ pub async fn get_account(
     // Forward to internal Account Service
     let res = state
         .http_client
-        .get(&format!(
+        .get(format!(
             "{}/internal/accounts/{}",
             state.internal_services_url, account_id
         ))
