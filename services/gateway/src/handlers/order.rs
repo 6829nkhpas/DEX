@@ -7,7 +7,7 @@ use axum::{
     Json,
 };
 use types::ids::OrderId;
-use reqwest::StatusCode;
+use axum::http::StatusCode;
 
 pub async fn create_order(
     State(state): State<AppState>,

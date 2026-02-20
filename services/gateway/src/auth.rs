@@ -1,10 +1,9 @@
 use crate::error::AppError;
 use axum::{
-    async_trait,
     extract::FromRequestParts,
     http::request::Parts,
-    RequestPartsExt,
 };
+use async_trait::async_trait;
 use dashmap::DashMap;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};

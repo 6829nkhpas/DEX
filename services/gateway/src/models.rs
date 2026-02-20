@@ -3,7 +3,7 @@ use types::numeric::{Price, Quantity};
 use types::order::{Side, TimeInForce};
 use types::ids::{AccountId, MarketId, OrderId};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderRequest {
     pub account_id: AccountId,
     pub symbol: MarketId,
@@ -13,13 +13,13 @@ pub struct CreateOrderRequest {
     pub time_in_force: TimeInForce,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderResponse {
     pub order_id: OrderId,
     pub status: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelOrderRequest {
     pub account_id: AccountId,
 }

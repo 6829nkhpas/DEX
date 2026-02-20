@@ -23,7 +23,7 @@ pub async fn ws_handler(
 
 async fn handle_socket(mut socket: WebSocket, state: AppState, user: AuthenticatedUser) {
     // Mock WebSocket loop
-    if socket.send(Message::Text("Connected".into())).await.is_err() {
+    if socket.send(Message::Text(axum::extract::ws::Utf8Bytes::from("Connected"))).await.is_err() {
         return;
     }
 
@@ -35,7 +35,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, user: Authenticat
                     if text == "subscribe:market_data" {
                         // Rate Limit API
                         let _ = state.rate_limiter.check_rate_limit(&format!("{}:ws_subscriptions", user.account_id), 50, 50.0);
-                        let _ = socket.send(Message::Text("Subscribed".into())).await;
+                        let _ = socket.send(Message::Text(axum::extract::ws::Utf8Bytes::from("Subscribed"))).await;
                     }
                 }
                 Message::Close(_) => {
