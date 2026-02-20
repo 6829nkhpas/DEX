@@ -42,6 +42,8 @@ pub mod delta;
 pub mod snapshot;
 pub mod trades;
 pub mod candles;
+pub mod websocket;
+pub mod backpressure;
 
 // Library version
 pub const SERVICE_VERSION: &str = "0.1.0";
