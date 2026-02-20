@@ -44,6 +44,8 @@ pub mod trades;
 pub mod candles;
 pub mod websocket;
 pub mod backpressure;
+pub mod replay;
+pub mod metrics;
 
 // Library version
 pub const SERVICE_VERSION: &str = "0.1.0";

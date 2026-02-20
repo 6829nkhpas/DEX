@@ -39,6 +39,7 @@ pub struct PublicTrade {
 }
 
 /// Manages the trade stream with buffering, sequencing, and history.
+#[derive(Debug)]
 pub struct TradeBuffer {
     /// Current trade sequence counter (per-market monotonic).
     sequence_counter: u64,
