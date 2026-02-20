@@ -17,5 +17,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["trace", "cors"] }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
 types = { version = "1.0.0", path = "../../libs/types" }
 uuid = { version = "1.21.0", features = ["v7"] }
