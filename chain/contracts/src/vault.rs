@@ -204,7 +204,7 @@ impl Vault {
     /// Internal debit with underflow protection.
     ///
     /// Subtracts `amount` from the account's asset balance.
-    pub(crate) fn safe_debit(
+    pub fn safe_debit(
         &mut self,
         account_id: &AccountId,
         asset: &str,
