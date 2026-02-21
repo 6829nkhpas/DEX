@@ -120,6 +120,7 @@ impl JournalEntry {
     /// Deserialize entry from the binary wire format.
     ///
     /// Returns `(entry, bytes_consumed)` on success.
+    /// Handles corrupted data gracefully by returning errors instead of panicking.
     pub fn from_bytes(data: &[u8]) -> Result<(Self, usize), JournalError> {
         if data.len() < 4 {
             return Err(JournalError::Serialization(
@@ -128,6 +129,15 @@ impl JournalEntry {
         }
 
         let body_len = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+
+        // Sanity check: reject absurdly large body_len (likely corruption)
+        if body_len > 100_000_000 {
+            return Err(JournalError::Serialization(format!(
+                "Implausible body length: {} (likely corruption)",
+                body_len
+            )));
+        }
+
         let total = 4 + body_len;
 
         if data.len() < total {
@@ -135,6 +145,14 @@ impl JournalEntry {
                 "Incomplete entry: need {} bytes, have {}",
                 total,
                 data.len()
+            )));
+        }
+
+        // Minimum body size: 8 (seq) + 8 (ts) + 2 (et_len) + 0 (et) + 4 (pl_len) + 0 (pl) + 4 (crc) = 26
+        if body_len < 26 {
+            return Err(JournalError::Serialization(format!(
+                "Body too small: {} bytes, minimum is 26",
+                body_len
             )));
         }
 
@@ -153,18 +171,44 @@ impl JournalEntry {
         let event_type_len =
             u16::from_le_bytes(body[pos..pos + 2].try_into().unwrap()) as usize;
         pos += 2;
+
+        if pos + event_type_len > body.len() {
+            return Err(JournalError::Serialization(format!(
+                "event_type_len {} exceeds remaining body ({} bytes)",
+                event_type_len,
+                body.len() - pos
+            )));
+        }
         let event_type = String::from_utf8(body[pos..pos + event_type_len].to_vec())
             .map_err(|e| JournalError::Serialization(e.to_string()))?;
         pos += event_type_len;
 
         // payload_len (u32) + payload
+        if pos + 4 > body.len() {
+            return Err(JournalError::Serialization(
+                "Not enough data for payload length".into(),
+            ));
+        }
         let payload_len =
             u32::from_le_bytes(body[pos..pos + 4].try_into().unwrap()) as usize;
         pos += 4;
+
+        if pos + payload_len > body.len() {
+            return Err(JournalError::Serialization(format!(
+                "payload_len {} exceeds remaining body ({} bytes)",
+                payload_len,
+                body.len() - pos
+            )));
+        }
         let payload = body[pos..pos + payload_len].to_vec();
         pos += payload_len;
 
         // checksum (u32)
+        if pos + 4 > body.len() {
+            return Err(JournalError::Serialization(
+                "Not enough data for checksum".into(),
+            ));
+        }
         let checksum = u32::from_le_bytes(body[pos..pos + 4].try_into().unwrap());
 
         let entry = Self {
