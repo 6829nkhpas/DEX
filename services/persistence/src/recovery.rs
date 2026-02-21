@@ -371,6 +371,7 @@ mod tests {
     use super::*;
     use crate::journal::{JournalConfig, JournalEntry, JournalWriter};
     use crate::snapshot::EngineState;
+    use std::path::Path;
     use tempfile::TempDir;
 
     fn write_journal(dir: &Path, start_seq: u64, count: u64) {
