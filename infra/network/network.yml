@@ -1,0 +1,133 @@
+# ──────────────────────────────────────────────────────
+# Network Topology — DEX Exchange
+# ──────────────────────────────────────────────────────
+# Per spec §10 — Security Boundaries:
+#   DMZ:      API Gateway only (public-facing)
+#   Internal: All other services (private)
+#   Database: Private subnet, no internet access
+# ──────────────────────────────────────────────────────
+
+topology:
+  zones:
+    dmz:
+      description: "Public-facing zone — API Gateway only"
+      subnet: "172.28.0.0/24"
+      internet_access: true
+      allowed_inbound:
+        - port: 443
+          protocol: TCP
+          source: "0.0.0.0/0"
+        - port: 80
+          protocol: TCP
+          source: "0.0.0.0/0"
+      services:
+        - gateway
+
+    internal:
+      description: "Internal service mesh — no public access"
+      subnet: "172.28.1.0/24"
+      internet_access: false
+      allowed_inbound:
+        - port: 8080-8084
+          protocol: TCP
+          source: "172.28.0.0/24"   # Only from DMZ (gateway)
+      services:
+        - matching-engine
+        - market-data
+        - risk-engine
+        - persistence
+        - redis
+
+    database:
+      description: "Database subnet — highly restricted"
+      subnet: "172.28.2.0/24"
+      internet_access: false
+      allowed_inbound:
+        - port: 5432
+          protocol: TCP
+          source: "172.28.1.0/24"   # Only from internal services
+
+    monitoring:
+      description: "Monitoring subnet"
+      subnet: "172.28.3.0/24"
+      internet_access: false
+      allowed_inbound:
+        - port: 9090
+          protocol: TCP
+          source: "172.28.1.0/24"   # Prometheus scrape from internal
+        - port: 3000
+          protocol: TCP
+          source: "172.28.0.0/24"   # Grafana via DMZ
+      services:
+        - prometheus
+        - grafana
+        - loki
+        - promtail
+
+  firewall_rules:
+    - name: "deny-all-default"
+      action: DENY
+      direction: INGRESS
+      source: "0.0.0.0/0"
+      destination: "172.28.0.0/16"
+      priority: 65534
+
+    - name: "allow-dmz-ingress"
+      action: ALLOW
+      direction: INGRESS
+      source: "0.0.0.0/0"
+      destination: "172.28.0.0/24"
+      ports: [80, 443]
+      priority: 1000
+
+    - name: "allow-dmz-to-internal"
+      action: ALLOW
+      direction: INGRESS
+      source: "172.28.0.0/24"
+      destination: "172.28.1.0/24"
+      ports: [8080, 8081, 8082, 8083, 8084]
+      priority: 1000
+
+    - name: "allow-internal-to-db"
+      action: ALLOW
+      direction: INGRESS
+      source: "172.28.1.0/24"
+      destination: "172.28.2.0/24"
+      ports: [5432]
+      priority: 1000
+
+    - name: "allow-internal-to-monitoring"
+      action: ALLOW
+      direction: INGRESS
+      source: "172.28.1.0/24"
+      destination: "172.28.3.0/24"
+      ports: [9090, 3100]
+      priority: 1000
+
+  dns:
+    internal_domain: "dex.internal"
+    records:
+      - name: "gateway.dex.internal"
+        type: A
+        zone: dmz
+      - name: "matching-engine.dex.internal"
+        type: A
+        zone: internal
+      - name: "market-data.dex.internal"
+        type: A
+        zone: internal
+      - name: "risk-engine.dex.internal"
+        type: A
+        zone: internal
+      - name: "persistence.dex.internal"
+        type: A
+        zone: internal
+      - name: "redis.dex.internal"
+        type: A
+        zone: internal
+      - name: "prometheus.dex.internal"
+        type: A
+        zone: monitoring
+      - name: "grafana.dex.internal"
+        type: A
+        zone: monitoring

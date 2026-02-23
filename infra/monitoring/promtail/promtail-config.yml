@@ -1,0 +1,55 @@
+# ──────────────────────────────────────────────
+# Promtail — Log Shipping Configuration
+# Ships container logs to Loki
+# ──────────────────────────────────────────────
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      # Parse Docker JSON log format
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            time: time
+
+      # Extract service name from container tag
+      - regex:
+          source: log
+          expression: '^\[(?P<level>\w+)\]\s*'
+
+      - labels:
+          stream:
+          level:
+
+      # Drop debug logs in production to reduce volume
+      - match:
+          selector: '{level="DEBUG"}'
+          stages:
+            - drop:
+                expression: ".*"
+                older_than: 1h
+
+      # Add timestamp
+      - timestamp:
+          source: time
+          format: "2006-01-02T15:04:05.999999999Z07:00"
+
+      - output:
+          source: log

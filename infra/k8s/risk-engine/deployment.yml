@@ -1,0 +1,140 @@
+# ──────────────────────────────────────────────
+# Risk Engine — Kubernetes Deployment + Service + HPA
+# Per spec §09: Horizontal + read replicas
+# ──────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-engine
+  namespace: dex-exchange
+  labels:
+    app: risk-engine
+    tier: internal
+    app.kubernetes.io/name: risk-engine
+    app.kubernetes.io/part-of: dex-exchange
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: risk-engine
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: risk-engine
+        tier: internal
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: dex-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: risk-engine
+          image: dex-exchange/risk-engine:latest
+          ports:
+            - containerPort: 8083
+              name: grpc
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: dex-config
+            - secretRef:
+                name: dex-secrets
+          env:
+            - name: SERVICE_NAME
+              value: "risk-engine"
+            - name: SERVICE_PORT
+              value: "8083"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: risk-engine
+  namespace: dex-exchange
+  labels:
+    app: risk-engine
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8083
+      targetPort: 8083
+      protocol: TCP
+      name: grpc
+  selector:
+    app: risk-engine
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: risk-engine-hpa
+  namespace: dex-exchange
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: risk-engine
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

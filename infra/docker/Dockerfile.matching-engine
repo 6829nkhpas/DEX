@@ -1,0 +1,47 @@
+# ──────────────────────────────────────────────
+# Dockerfile: matching-engine
+# Multi-stage build for the Matching Engine
+# HOT PATH — optimized for latency
+# ──────────────────────────────────────────────
+FROM rust:1.77-slim-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy shared libs first (dependency layer cache)
+COPY libs/types/ libs/types/
+COPY libs/wasm-core/ libs/wasm-core/
+
+# Copy service source
+COPY services/matching-engine/ services/matching-engine/
+
+WORKDIR /build/services/matching-engine
+
+# Build with maximum optimisations for the hot path
+ENV RUSTFLAGS="-C target-cpu=native -C opt-level=3"
+RUN cargo build --release
+
+# ──────────────────────────────────────────────
+# Runtime stage
+# ──────────────────────────────────────────────
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl3 curl && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 dex && \
+    useradd --uid 1000 --gid dex --shell /bin/false dex
+
+COPY --from=builder /build/services/matching-engine/target/release/matching-engine /usr/local/bin/matching-engine
+
+USER dex
+EXPOSE 8081
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8081/health || exit 1
+
+ENTRYPOINT ["matching-engine"]

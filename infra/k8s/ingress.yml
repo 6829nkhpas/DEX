@@ -1,0 +1,55 @@
+# ──────────────────────────────────────────────
+# Ingress — TLS termination, routing to gateway
+# Per spec §10: DMZ — API Gateway only
+# ──────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dex-ingress
+  namespace: dex-exchange
+  labels:
+    app.kubernetes.io/part-of: dex-exchange
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/websocket-services: "gateway"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.dex.exchange
+        - ws.dex.exchange
+      secretName: dex-tls-cert
+  rules:
+    - host: api.dex.exchange
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080
+    - host: ws.dex.exchange
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080

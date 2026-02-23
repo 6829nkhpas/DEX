@@ -1,0 +1,114 @@
+# ──────────────────────────────────────────────
+# CI Test Pipeline — DEX Exchange
+# Runs tests, clippy, and fmt checks on push/PR
+# Per spec §19: code_coverage >= 80%
+# ──────────────────────────────────────────────
+name: CI Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ─── Unit + integration tests ──────────────
+  test:
+    name: Test ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: gateway, path: services/gateway }
+          - { name: matching-engine, path: services/matching-engine }
+          - { name: market-data, path: services/market-data }
+          - { name: risk-engine, path: services/risk-engine }
+          - { name: persistence, path: services/persistence }
+          - { name: types, path: libs/types }
+          - { name: contracts, path: chain/contracts }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ matrix.service.path }}/target
+          key: ${{ runner.os }}-test-${{ matrix.service.name }}-${{ hashFiles(format('{0}/Cargo.lock', matrix.service.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ matrix.service.name }}-
+
+      - name: Run tests
+        working-directory: ${{ matrix.service.path }}
+        run: cargo test --all-features -- --test-threads=1
+
+  # ─── Lint checks ──────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: gateway, path: services/gateway }
+          - { name: matching-engine, path: services/matching-engine }
+          - { name: market-data, path: services/market-data }
+          - { name: risk-engine, path: services/risk-engine }
+          - { name: persistence, path: services/persistence }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: cargo fmt
+        working-directory: ${{ matrix.service.path }}
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        working-directory: ${{ matrix.service.path }}
+        run: cargo clippy --all-features -- -D warnings
+
+  # ─── Infrastructure validation ─────────────
+  infra-validate:
+    name: Validate Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate YAML files
+        run: |
+          pip install pyyaml
+          find infra/ -name '*.yml' -o -name '*.yaml' | while read f; do
+            echo "Validating: $f"
+            python3 -c "import yaml; yaml.safe_load(open('$f'))" || exit 1
+          done
+
+      - name: Validate JSON files
+        run: |
+          find infra/ -name '*.json' | while read f; do
+            echo "Validating: $f"
+            python3 -c "import json; json.load(open('$f'))" || exit 1
+          done
+
+      - name: Validate docker-compose
+        run: |
+          docker compose -f infra/docker-compose.yml config --quiet
+
+      - name: Shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: infra/

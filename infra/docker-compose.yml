@@ -1,0 +1,199 @@
+# ──────────────────────────────────────────────────────
+# DEX Exchange — Local Development Cluster
+# ──────────────────────────────────────────────────────
+# Usage:
+#   docker-compose up -d          # start all services
+#   docker-compose logs -f        # follow logs
+#   docker-compose down -v        # tear down + volumes
+# ──────────────────────────────────────────────────────
+
+version: "3.9"
+
+x-rust-service: &rust-service
+  restart: unless-stopped
+  networks:
+    - dex-internal
+  env_file:
+    - ./config/env.staging.env
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+      tag: "{{.Name}}"
+
+services:
+  # ────────────── Core Services ──────────────────────
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.gateway
+    <<: *rust-service
+    ports:
+      - "8080:8080"
+    networks:
+      - dex-dmz
+      - dex-internal
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - SERVICE_NAME=gateway
+      - SERVICE_PORT=8080
+      - REDIS_URL=redis://redis:6379
+
+  matching-engine:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.matching-engine
+    <<: *rust-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVICE_NAME=matching-engine
+      - SERVICE_PORT=8081
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "2.0"
+          memory: 2G
+
+  market-data:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.market-data
+    <<: *rust-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVICE_NAME=market-data
+      - SERVICE_PORT=8082
+
+  risk-engine:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.risk-engine
+    <<: *rust-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVICE_NAME=risk-engine
+      - SERVICE_PORT=8083
+
+  persistence:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.persistence
+    <<: *rust-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SERVICE_NAME=persistence
+      - SERVICE_PORT=8084
+
+  # ────────────── Infrastructure ─────────────────────
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - dex-internal
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ────────────── Monitoring ─────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    networks:
+      - dex-internal
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - dex-internal
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.6
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    networks:
+      - dex-internal
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:2.9.6
+    restart: unless-stopped
+    networks:
+      - dex-internal
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+# ────────────── Networks ─────────────────────────────
+
+networks:
+  dex-dmz:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  dex-internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24
+
+# ────────────── Volumes ──────────────────────────────
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:

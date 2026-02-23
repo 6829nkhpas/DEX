@@ -1,0 +1,13 @@
+# Grafana — Dashboard Provisioning
+apiVersion: 1
+
+providers:
+  - name: "DEX Exchange"
+    orgId: 1
+    folder: "DEX Exchange"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

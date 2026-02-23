@@ -1,0 +1,145 @@
+# ──────────────────────────────────────────────
+# Market Data — Kubernetes Deployment + Service + HPA
+# ──────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-data
+  namespace: dex-exchange
+  labels:
+    app: market-data
+    tier: internal
+    app.kubernetes.io/name: market-data
+    app.kubernetes.io/part-of: dex-exchange
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: market-data
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: market-data
+        tier: internal
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: dex-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: market-data
+          image: dex-exchange/market-data:latest
+          ports:
+            - containerPort: 8082
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: dex-config
+            - secretRef:
+                name: dex-secrets
+          env:
+            - name: SERVICE_NAME
+              value: "market-data"
+            - name: SERVICE_PORT
+              value: "8082"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: market-data
+  namespace: dex-exchange
+  labels:
+    app: market-data
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+      name: http
+  selector:
+    app: market-data
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: market-data-hpa
+  namespace: dex-exchange
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: market-data
+  minReplicas: 3
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

@@ -1,0 +1,155 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "title": "Matching Latency — p50 / p95 / p99",
+      "description": "SLA: p99 < 500μs",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(matching_engine_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(matching_engine_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(matching_engine_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.0003 },
+              { "color": "red", "value": 0.0005 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Order Throughput (per symbol)",
+      "description": "Target: 100,000 orders/sec per symbol",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(orders_processed_total[1m])) by (symbol)",
+          "legendFormat": "{{ symbol }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "Trade Execution Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(trades_executed_total[1m])) by (symbol)",
+          "legendFormat": "{{ symbol }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "Order Book Depth",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "order_book_depth{side=\"bid\"}",
+          "legendFormat": "Bids {{ symbol }}"
+        },
+        {
+          "expr": "order_book_depth{side=\"ask\"}",
+          "legendFormat": "Asks {{ symbol }}"
+        }
+      ]
+    },
+    {
+      "title": "Event Processing Lag",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "event_processing_lag",
+          "legendFormat": "{{ job }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Memory & GC",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"matching-engine\"} / 1024 / 1024",
+          "legendFormat": "RSS (MiB)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "MiB"
+        }
+      }
+    },
+    {
+      "title": "CPU Utilization",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"matching-engine\"}[1m])",
+          "legendFormat": "CPU cores"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["dex", "matching-engine", "hot-path"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "DEX Exchange — Matching Engine (Hot Path)",
+  "uid": "dex-matching-engine",
+  "version": 1
+}

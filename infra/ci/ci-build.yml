@@ -1,0 +1,99 @@
+# ──────────────────────────────────────────────
+# CI Build Pipeline — DEX Exchange
+# Builds all services and Docker images on push/PR
+# ──────────────────────────────────────────────
+name: CI Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ─── Rust compilation ──────────────────────
+  build:
+    name: Build Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: gateway, path: services/gateway }
+          - { name: matching-engine, path: services/matching-engine }
+          - { name: market-data, path: services/market-data }
+          - { name: risk-engine, path: services/risk-engine }
+          - { name: persistence, path: services/persistence }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ matrix.service.path }}/target
+          key: ${{ runner.os }}-cargo-${{ matrix.service.name }}-${{ hashFiles(format('{0}/Cargo.lock', matrix.service.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.service.name }}-
+
+      - name: Build ${{ matrix.service.name }}
+        working-directory: ${{ matrix.service.path }}
+        run: cargo build --release
+
+  # ─── Docker image builds ───────────────────
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        service: [gateway, matching-engine, market-data, risk-engine, persistence]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/Dockerfile.${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

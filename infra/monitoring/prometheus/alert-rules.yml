@@ -1,0 +1,166 @@
+# ──────────────────────────────────────────────────────
+# Alert Rules — DEX Exchange
+# Per spec §10 (monitoring) & §19 (security invariants)
+# ──────────────────────────────────────────────────────
+groups:
+  # ────────── P0: Critical ─────────────────────────
+  - name: p0_critical
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "{{ $labels.job }} has been unreachable for 30 seconds."
+
+      - alert: MatchingEngineLatencyHigh
+        expr: histogram_quantile(0.99, rate(matching_engine_latency_seconds_bucket[5m])) > 0.0005
+        for: 1m
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "Matching engine p99 latency exceeds 500μs SLA"
+          description: "p99 latency is {{ $value }}s (SLA: 500μs)"
+
+      - alert: DataIntegrityViolation
+        expr: data_integrity_violations_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "DATA INTEGRITY VIOLATION detected"
+          description: "Invariant violation in {{ $labels.service }}. HALT TRADING."
+
+      - alert: EventSequenceGap
+        expr: event_sequence_gaps_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "Event sequence gap detected"
+          description: "Missing events in {{ $labels.service }}. Spec §19 §4.3 violation."
+
+  # ────────── P1: High ─────────────────────────────
+  - name: p1_high
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: high
+          priority: P1
+        annotations:
+          summary: "Error rate >5% on {{ $labels.job }}"
+          description: "{{ $labels.job }} error rate: {{ $value | humanizePercentage }}"
+
+      - alert: GatewayLatencyHigh
+        expr: histogram_quantile(0.99, rate(gateway_request_duration_seconds_bucket[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: high
+          priority: P1
+        annotations:
+          summary: "Gateway p99 latency exceeds 100ms SLA"
+          description: "Gateway p99 latency: {{ $value }}s"
+
+      - alert: ReplicationLagHigh
+        expr: database_replication_lag_seconds > 10
+        for: 1m
+        labels:
+          severity: high
+          priority: P1
+        annotations:
+          summary: "Database replication lag >10s"
+          description: "Replication lag: {{ $value }}s (spec §19 §5.2 threshold: 10s)"
+
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 30s
+        labels:
+          severity: high
+          priority: P1
+        annotations:
+          summary: "Circuit breaker OPEN for {{ $labels.dependency }}"
+          description: "{{ $labels.service }} → {{ $labels.dependency }} circuit is open"
+
+  # ────────── P2: Medium ───────────────────────────
+  - name: p2_medium
+    rules:
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.8
+        for: 5m
+        labels:
+          severity: medium
+          priority: P2
+        annotations:
+          summary: "Memory usage >80% on {{ $labels.container }}"
+          description: "Memory: {{ $value | humanizePercentage }}. Auto-restart at 80% per spec §10 §11.2."
+
+      - alert: HighCpuUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) / container_spec_cpu_quota * container_spec_cpu_period > 0.8
+        for: 5m
+        labels:
+          severity: medium
+          priority: P2
+        annotations:
+          summary: "CPU usage >80% on {{ $labels.container }}"
+          description: "CPU: {{ $value | humanizePercentage }}"
+
+      - alert: EventProcessingLag
+        expr: event_processing_lag > 1000
+        for: 2m
+        labels:
+          severity: medium
+          priority: P2
+        annotations:
+          summary: "Event processing lag >1000 events"
+          description: "Lag: {{ $value }} events (spec §19 §5.3 threshold: 1000)"
+
+      - alert: RateLimitHitRate
+        expr: rate(rate_limit_exceeded_total[1h]) > 100
+        for: 5m
+        labels:
+          severity: medium
+          priority: P2
+        annotations:
+          summary: "High rate limit hit rate"
+          description: "{{ $value }} rate limit hits/hour — review per spec §18 §11.2"
+
+  # ────────── P3: Low ──────────────────────────────
+  - name: p3_low
+    rules:
+      - alert: DiskSpaceWarning
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.15
+        for: 10m
+        labels:
+          severity: low
+          priority: P3
+        annotations:
+          summary: "Disk space <15% remaining"
+          description: "{{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free"
+
+      - alert: PodRestartLoop
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+        for: 5m
+        labels:
+          severity: low
+          priority: P3
+        annotations:
+          summary: "Pod {{ $labels.pod }} restarting frequently"
+          description: "{{ $value }} restarts in the last hour"
+
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: low
+          priority: P3
+        annotations:
+          summary: "Database queries slow (p95 > 1s)"
+          description: "p95 query time: {{ $value }}s (spec §10 timeout: 5s)"

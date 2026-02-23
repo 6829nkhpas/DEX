@@ -1,0 +1,146 @@
+# ──────────────────────────────────────────────
+# Persistence — Kubernetes Deployment + Service + HPA
+# Per spec §09: Horizontal, idempotent
+# ──────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: persistence
+  namespace: dex-exchange
+  labels:
+    app: persistence
+    tier: internal
+    app.kubernetes.io/name: persistence
+    app.kubernetes.io/part-of: dex-exchange
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: persistence
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: persistence
+        tier: internal
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: dex-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: persistence
+          image: dex-exchange/persistence:latest
+          ports:
+            - containerPort: 8084
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: dex-config
+            - secretRef:
+                name: dex-secrets
+          env:
+            - name: SERVICE_NAME
+              value: "persistence"
+            - name: SERVICE_PORT
+              value: "8084"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: persistence
+  namespace: dex-exchange
+  labels:
+    app: persistence
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8084
+      targetPort: 8084
+      protocol: TCP
+      name: http
+  selector:
+    app: persistence
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: persistence-hpa
+  namespace: dex-exchange
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: persistence
+  minReplicas: 3
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
