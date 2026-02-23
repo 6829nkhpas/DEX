@@ -10,7 +10,7 @@ impl SignatureVerifier {
         if signature == "invalid_sig" || signature.is_empty() {
             return false;
         }
-        
+
         let expected = format!("sig_{}_{}", payload, public_key);
         signature == expected
     }
@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn test_invalid_signature_spam_mitigation() {
         let mut gateway = ApiGateway::new();
-        
+
         // Attacker sends 1000 invalid signatures
         for _ in 0..1000 {
             gateway.handle_request("buy_100_btc", "invalid_sig", "pk_123");

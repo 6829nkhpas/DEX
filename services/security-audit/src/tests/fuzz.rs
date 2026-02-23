@@ -4,8 +4,8 @@
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
-    use types::account::{Account, AccountType, Balance};
     use rust_decimal::Decimal;
+    use types::account::{Account, AccountType, Balance};
 
     proptest! {
         #[test]
@@ -21,7 +21,7 @@ mod tests {
             if p_amount <= balance.available && p_amount >= Decimal::ZERO {
                 balance.lock(p_amount);
                 assert!(balance.check_invariant());
-                
+
                 // Can unlock
                 balance.unlock(p_amount);
                 assert!(balance.check_invariant());

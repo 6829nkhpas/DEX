@@ -2,9 +2,9 @@
 //! Simulates high-concurrency event ingestion pointing out that sequence numbering
 //! must be atomic to ensure no gaps or duplicate numbers exist in the event stream.
 
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::collections::HashSet;
 
 pub struct AtomicSequenceGenerator {
     current: AtomicU64,
@@ -59,16 +59,24 @@ mod tests {
             let local_seqs = handle.join().unwrap();
             for seq in local_seqs {
                 // Ensure no duplicate sequence numbers were generated
-                assert!(all_sequences.insert(seq), "Duplicate sequence detected: {}", seq);
+                assert!(
+                    all_sequences.insert(seq),
+                    "Duplicate sequence detected: {}",
+                    seq
+                );
             }
         }
 
         // Ensure all numbers from 1 to (num_threads * num_iterations) were generated (no gaps)
         let total = num_threads * num_iterations;
         assert_eq!(all_sequences.len(), total);
-        
+
         for i in 1..=(total as u64) {
-            assert!(all_sequences.contains(&i), "Gap in sequence detected at: {}", i);
+            assert!(
+                all_sequences.contains(&i),
+                "Gap in sequence detected at: {}",
+                i
+            );
         }
     }
 }

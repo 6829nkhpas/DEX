@@ -24,14 +24,14 @@ impl NonceTracker {
 
     pub fn process(&mut self, account_id: &str, nonce: u64) -> Result<(), NonceError> {
         let last = self.last_nonces.get(account_id).unwrap_or(&0);
-        
+
         if nonce < *last {
             return Err(NonceError::NonceTooLow);
         }
         if nonce == *last && *last != 0 {
             return Err(NonceError::NonceReused);
         }
-        
+
         self.last_nonces.insert(account_id.to_string(), nonce);
         Ok(())
     }
@@ -54,7 +54,7 @@ mod tests {
 
         // Initial request works
         assert_eq!(tracker.process(account, 100), Ok(()));
-        
+
         // Next sequential request works
         assert_eq!(tracker.process(account, 101), Ok(()));
 

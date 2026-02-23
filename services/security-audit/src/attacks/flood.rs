@@ -27,14 +27,11 @@ impl RateLimiter {
     /// Tests if a request is allowed at the given instant.
     pub fn allow_request(&mut self, now: Instant) -> bool {
         let elapsed = now.duration_since(self.last_update).as_secs_f64();
-        
+
         // Refill tokens based on elapsed time
-        self.tokens = f64::min(
-            self.capacity,
-            self.tokens + elapsed * self.refill_rate
-        );
+        self.tokens = f64::min(self.capacity, self.tokens + elapsed * self.refill_rate);
         self.last_update = now;
-        
+
         // Consume token if available
         if self.tokens >= 1.0 {
             self.tokens -= 1.0;
@@ -56,10 +53,10 @@ mod tests {
         let base_rate = 20.0;
         let mut mock_time = Instant::now();
         let mut limiter = RateLimiter::new(base_rate, mock_time);
-        
+
         // The bucket capacity is base_rate * 2.0 = 40.0 tokens.
         // Therefore, an attacker can theoretically burst 40 requests without time passing.
-        
+
         let mut accepted = 0;
         let mut rejected = 0;
 

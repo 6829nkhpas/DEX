@@ -57,19 +57,34 @@ mod tests {
 
         // 1. Alice tries to modify Alice's balance -> OK
         assert_eq!(
-            AuthorizationService::check_permission(&alice, Some(&alice), ResourceType::AccountBalance, false),
+            AuthorizationService::check_permission(
+                &alice,
+                Some(&alice),
+                ResourceType::AccountBalance,
+                false
+            ),
             Ok(())
         );
 
         // 2. Alice tries to modify Bob's balance -> Error (Privilege Escalation Attempt)
         assert_eq!(
-            AuthorizationService::check_permission(&alice, Some(&bob), ResourceType::AccountBalance, false),
+            AuthorizationService::check_permission(
+                &alice,
+                Some(&bob),
+                ResourceType::AccountBalance,
+                false
+            ),
             Err(AuthError::Unauthorized)
         );
 
         // 3. Admin modifies Bob's balance -> OK
         assert_eq!(
-            AuthorizationService::check_permission(&admin, Some(&bob), ResourceType::AccountBalance, true),
+            AuthorizationService::check_permission(
+                &admin,
+                Some(&bob),
+                ResourceType::AccountBalance,
+                true
+            ),
             Ok(())
         );
 

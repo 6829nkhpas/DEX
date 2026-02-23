@@ -2,7 +2,7 @@
 //! Simulates a connection monitor that disconnects clients who send data too slowly
 //! (like a Slowloris attack) by enforcing an idle_timeout.
 
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 /// Simulates tracking connection health at the gateway level.
 pub struct ConnectionMonitor {
@@ -47,10 +47,10 @@ mod tests {
         for _ in 0..10 {
             // Client waits 5 seconds between bytes
             mock_time += Duration::from_secs(5);
-            
+
             // Should not timeout yet because max idle time is 30s
             assert!(!monitor.is_timed_out(mock_time));
-            
+
             monitor.receive_data(mock_time);
         }
 
