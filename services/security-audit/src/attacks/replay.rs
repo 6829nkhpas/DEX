@@ -2,10 +2,8 @@
 //! Tests that replaying the exact same signed payload or order is rejected.
 
 use std::collections::HashSet;
-use std::str::FromStr;
-use types::ids::{AccountId, MarketId, OrderId};
-use types::numeric::{Price, Quantity};
-use types::order::{Order, Side, TimeInForce};
+use types::ids::OrderId;
+use types::order::Order;
 
 /// Simulates an exchange endpoint that drops replayed messages referencing the same Order ID
 /// or sequence number.
@@ -39,6 +37,9 @@ impl Default for ReplayDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use types::ids::{AccountId, MarketId};
+    use types::numeric::{Price, Quantity};
+    use types::order::{Side, TimeInForce};
 
     #[test]
     fn test_replay_attack_mitigation() {

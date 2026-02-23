@@ -5,7 +5,7 @@
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use types::account::{Account, AccountType, Balance};
+use types::account::Account;
 use types::ids::AccountId;
 
 /// Simulates a data store that enforces optimistic locking on Account updates.
@@ -111,7 +111,7 @@ pub fn handle_withdrawal(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
+    use types::account::{AccountType, Balance};
 
     #[test]
     fn test_double_spend_mitigation() {

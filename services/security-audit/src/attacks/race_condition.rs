@@ -2,9 +2,7 @@
 //! Simulates high-concurrency event ingestion pointing out that sequence numbering
 //! must be atomic to ensure no gaps or duplicate numbers exist in the event stream.
 
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 pub struct AtomicSequenceGenerator {
     current: AtomicU64,
@@ -32,6 +30,8 @@ impl Default for AtomicSequenceGenerator {
 mod tests {
     use super::*;
     use std::thread;
+    use std::sync::Arc;
+    use std::collections::HashSet;
 
     #[test]
     fn test_race_condition_sequence_generation() {

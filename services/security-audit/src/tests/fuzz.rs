@@ -5,7 +5,7 @@
 mod tests {
     use proptest::prelude::*;
     use rust_decimal::Decimal;
-    use types::account::{Account, AccountType, Balance};
+    use types::account::Balance;
 
     proptest! {
         #[test]
