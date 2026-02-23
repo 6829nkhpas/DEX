@@ -156,7 +156,7 @@ impl MarketMaker {
     }
 
     /// Update inventory after a fill (positive = bought, negative = sold).
-    pub fn record_fill(&mut self, side: Side, quantity: Decimal, price: Decimal) {
+    pub fn record_fill(&mut self, side: Side, quantity: Decimal, _price: Decimal) {
         match side {
             Side::BUY => self.net_inventory += quantity,
             Side::SELL => self.net_inventory -= quantity,

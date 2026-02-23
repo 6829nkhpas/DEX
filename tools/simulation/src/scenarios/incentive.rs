@@ -98,6 +98,8 @@ pub fn run(engine: &mut SimEngine, config: &IncentiveConfig) -> (ScenarioResult,
 
     let final_tier = tier_for_volume(cumulative_volume, &tiers);
 
+    let upgrade_count = tier_upgrades.len();
+
     let detail = IncentiveDetail {
         cumulative_volume,
         current_tier_index: final_tier,
@@ -121,7 +123,7 @@ pub fn run(engine: &mut SimEngine, config: &IncentiveConfig) -> (ScenarioResult,
             final_tier,
             tiers[final_tier].maker_rate,
             tiers[final_tier].taker_rate,
-            tier_upgrades.len(),
+            upgrade_count,
         ),
     };
 

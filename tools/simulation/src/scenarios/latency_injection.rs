@@ -55,7 +55,6 @@ pub fn run(engine: &mut SimEngine, config: &LatencyConfig) -> ScenarioResult {
     let base_ts: i64 = 1_000_000;
     let mut queue: VecDeque<DelayedOrder> = VecDeque::new();
     let mut total_orders: u64 = 0;
-    let mut stale_fills: u64 = 0;
     let seeder = AccountId::new();
 
     // Seed initial book

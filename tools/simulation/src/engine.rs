@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use types::fee::FeeTier;
 use types::ids::{AccountId, MarketId, OrderId, TradeId};
-use types::numeric::{Price, Quantity};
+use types::numeric::Price;
 use types::order::Side;
 
 /// Fee rounding precision (8 dp, spec §7.2: round UP to 8 dp).
@@ -103,14 +103,11 @@ pub struct SimEngine {
 /// Wrapper for BTreeMap ordering. Bids: descending (negate). Asks: ascending.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct OrderedPrice {
-    /// For bids we store negated price so BTreeMap natural order gives descending.
-    /// For asks we store raw price for ascending order.
     key: i128,
 }
 
 impl OrderedPrice {
     fn bid(price: Price) -> Self {
-        // Negate the mantissa for descending order in BTreeMap
         let raw = decimal_to_i128(price.as_decimal());
         Self { key: -raw }
     }
@@ -123,10 +120,78 @@ impl OrderedPrice {
 
 /// Convert Decimal to i128 with 18-digit fixed-point scaling for ordering.
 fn decimal_to_i128(d: Decimal) -> i128 {
-    // Scale to 18 decimal places for comparison
     let scale_factor = Decimal::from_i128_with_scale(1_000_000_000_000_000_000, 0);
     let scaled = d * scale_factor;
     scaled.to_i128().unwrap_or(0)
+}
+
+/// Round fee UP (never undercharge, spec §7.2).
+fn round_up_fee(v: Decimal) -> Decimal {
+    v.round_dp_with_strategy(FEE_DP, RoundingStrategy::AwayFromZero)
+}
+
+/// Match against orders at a single price level (free function to avoid borrow conflicts).
+fn match_level(
+    level: &mut PriceLevel,
+    taker_id: OrderId,
+    taker_account: AccountId,
+    price: Price,
+    remaining: &mut Decimal,
+    timestamp: i64,
+    fee_tier: &FeeTier,
+    events: &mut Vec<SimEvent>,
+    sequence: &mut u64,
+) {
+    let mut filled_indices = Vec::new();
+
+    for (i, maker) in level.orders.iter_mut().enumerate() {
+        if *remaining <= Decimal::ZERO {
+            break;
+        }
+
+        let fill_qty = (*remaining).min(maker.remaining);
+        let fill_value = fill_qty * price.as_decimal();
+
+        let maker_fee = round_up_fee(fill_value * fee_tier.maker_rate);
+        let taker_fee = round_up_fee(fill_value * fee_tier.taker_rate);
+
+        *sequence += 1;
+        events.push(SimEvent::TradeExecuted {
+            trade_id: TradeId::new(),
+            maker_order_id: maker.order_id,
+            taker_order_id: taker_id,
+            maker_account_id: maker.account_id,
+            taker_account_id: taker_account,
+            price,
+            quantity: fill_qty,
+            maker_fee,
+            taker_fee,
+            timestamp,
+        });
+
+        maker.remaining -= fill_qty;
+        *remaining -= fill_qty;
+
+        if maker.remaining == Decimal::ZERO {
+            filled_indices.push(i);
+            events.push(SimEvent::OrderFilled {
+                order_id: maker.order_id,
+                filled_quantity: fill_qty,
+                timestamp,
+            });
+        } else {
+            events.push(SimEvent::OrderPartiallyFilled {
+                order_id: maker.order_id,
+                filled_quantity: fill_qty,
+                remaining_quantity: maker.remaining,
+                timestamp,
+            });
+        }
+    }
+
+    for i in filled_indices.into_iter().rev() {
+        level.orders.remove(i);
+    }
 }
 
 impl SimEngine {
@@ -208,165 +273,61 @@ impl SimEngine {
         mut remaining: Decimal,
         timestamp: i64,
     ) -> Decimal {
-        let prices_to_remove: Vec<OrderedPrice>;
-
         match side {
             Side::BUY => {
-                prices_to_remove = self.match_buy(
-                    taker_id, taker_account, limit_price, &mut remaining, timestamp,
-                );
-                for p in prices_to_remove {
+                let keys: Vec<OrderedPrice> = self.asks.keys().cloned().collect();
+                let mut to_remove = Vec::new();
+
+                for key in keys {
+                    if remaining <= Decimal::ZERO {
+                        break;
+                    }
+                    let level = self.asks.get_mut(&key).unwrap();
+                    let maker_price = level.orders[0].price;
+                    if maker_price.as_decimal() > limit_price.as_decimal() {
+                        break;
+                    }
+                    match_level(
+                        level, taker_id, taker_account, maker_price,
+                        &mut remaining, timestamp,
+                        &self.fee_tier, &mut self.events, &mut self.sequence,
+                    );
+                    if level.is_empty() {
+                        to_remove.push(key);
+                    }
+                }
+                for p in to_remove {
                     self.asks.remove(&p);
                 }
             }
             Side::SELL => {
-                prices_to_remove = self.match_sell(
-                    taker_id, taker_account, limit_price, &mut remaining, timestamp,
-                );
-                for p in prices_to_remove {
+                let keys: Vec<OrderedPrice> = self.bids.keys().cloned().collect();
+                let mut to_remove = Vec::new();
+
+                for key in keys {
+                    if remaining <= Decimal::ZERO {
+                        break;
+                    }
+                    let level = self.bids.get_mut(&key).unwrap();
+                    let maker_price = level.orders[0].price;
+                    if maker_price.as_decimal() < limit_price.as_decimal() {
+                        break;
+                    }
+                    match_level(
+                        level, taker_id, taker_account, maker_price,
+                        &mut remaining, timestamp,
+                        &self.fee_tier, &mut self.events, &mut self.sequence,
+                    );
+                    if level.is_empty() {
+                        to_remove.push(key);
+                    }
+                }
+                for p in to_remove {
                     self.bids.remove(&p);
                 }
             }
         }
-
         remaining
-    }
-
-    /// Match a BUY order against asks (ascending price order).
-    fn match_buy(
-        &mut self,
-        taker_id: OrderId,
-        taker_account: AccountId,
-        limit_price: Price,
-        remaining: &mut Decimal,
-        timestamp: i64,
-    ) -> Vec<OrderedPrice> {
-        let mut to_remove = Vec::new();
-
-        let keys: Vec<OrderedPrice> = self.asks.keys().cloned().collect();
-        for key in keys {
-            if *remaining <= Decimal::ZERO {
-                break;
-            }
-
-            let level = self.asks.get_mut(&key).unwrap();
-            let maker_price = level.orders[0].price;
-
-            // BUY: only match if ask price <= limit price
-            if maker_price.as_decimal() > limit_price.as_decimal() {
-                break;
-            }
-
-            self.match_level(
-                level, taker_id, taker_account, maker_price, remaining, timestamp,
-            );
-
-            if level.is_empty() {
-                to_remove.push(key);
-            }
-        }
-
-        to_remove
-    }
-
-    /// Match a SELL order against bids (descending price order).
-    fn match_sell(
-        &mut self,
-        taker_id: OrderId,
-        taker_account: AccountId,
-        limit_price: Price,
-        remaining: &mut Decimal,
-        timestamp: i64,
-    ) -> Vec<OrderedPrice> {
-        let mut to_remove = Vec::new();
-
-        let keys: Vec<OrderedPrice> = self.bids.keys().cloned().collect();
-        for key in keys {
-            if *remaining <= Decimal::ZERO {
-                break;
-            }
-
-            let level = self.bids.get_mut(&key).unwrap();
-            let maker_price = level.orders[0].price;
-
-            // SELL: only match if bid price >= limit price
-            if maker_price.as_decimal() < limit_price.as_decimal() {
-                break;
-            }
-
-            self.match_level(
-                level, taker_id, taker_account, maker_price, remaining, timestamp,
-            );
-
-            if level.is_empty() {
-                to_remove.push(key);
-            }
-        }
-
-        to_remove
-    }
-
-    /// Match against orders at a single price level (time priority within level).
-    fn match_level(
-        &mut self,
-        level: &mut PriceLevel,
-        taker_id: OrderId,
-        taker_account: AccountId,
-        price: Price,
-        remaining: &mut Decimal,
-        timestamp: i64,
-    ) {
-        let mut filled_indices = Vec::new();
-
-        for (i, maker) in level.orders.iter_mut().enumerate() {
-            if *remaining <= Decimal::ZERO {
-                break;
-            }
-
-            let fill_qty = (*remaining).min(maker.remaining);
-            let fill_value = fill_qty * price.as_decimal();
-
-            let maker_fee = round_up_fee(fill_value * self.fee_tier.maker_rate);
-            let taker_fee = round_up_fee(fill_value * self.fee_tier.taker_rate);
-
-            self.sequence += 1;
-            self.events.push(SimEvent::TradeExecuted {
-                trade_id: TradeId::new(),
-                maker_order_id: maker.order_id,
-                taker_order_id: taker_id,
-                maker_account_id: maker.account_id,
-                taker_account_id: taker_account,
-                price,
-                quantity: fill_qty,
-                maker_fee,
-                taker_fee,
-                timestamp,
-            });
-
-            maker.remaining -= fill_qty;
-            *remaining -= fill_qty;
-
-            if maker.remaining == Decimal::ZERO {
-                filled_indices.push(i);
-                self.events.push(SimEvent::OrderFilled {
-                    order_id: maker.order_id,
-                    filled_quantity: fill_qty,
-                    timestamp,
-                });
-            } else {
-                self.events.push(SimEvent::OrderPartiallyFilled {
-                    order_id: maker.order_id,
-                    filled_quantity: fill_qty,
-                    remaining_quantity: maker.remaining,
-                    timestamp,
-                });
-            }
-        }
-
-        // Remove fully filled orders (in reverse to preserve indices)
-        for i in filled_indices.into_iter().rev() {
-            level.orders.remove(i);
-        }
     }
 
     /// Insert a resting order into the book.
@@ -385,57 +346,35 @@ impl SimEngine {
 
     /// Cancel an order by ID. Returns true if found and canceled.
     pub fn cancel_order(&mut self, order_id: OrderId, timestamp: i64) -> bool {
-        if let Some(remaining) = self.remove_from_book(&self.bids.clone(), order_id, Side::BUY) {
-            self.bids = self.rebuild_without(self.bids.clone(), order_id);
-            self.events.push(SimEvent::OrderCanceled {
-                order_id,
-                remaining_quantity: remaining,
-                timestamp,
-            });
-            return true;
-        }
-
-        if let Some(remaining) = self.remove_from_book(&self.asks.clone(), order_id, Side::SELL) {
-            self.asks = self.rebuild_without(self.asks.clone(), order_id);
-            self.events.push(SimEvent::OrderCanceled {
-                order_id,
-                remaining_quantity: remaining,
-                timestamp,
-            });
-            return true;
-        }
-
-        false
-    }
-
-    /// Find an order in a side of the book and return its remaining qty.
-    fn remove_from_book(
-        &self,
-        book: &BTreeMap<OrderedPrice, PriceLevel>,
-        order_id: OrderId,
-        _side: Side,
-    ) -> Option<Decimal> {
-        for level in book.values() {
-            for entry in &level.orders {
-                if entry.order_id == order_id {
-                    return Some(entry.remaining);
-                }
+        // Search bids
+        for level in self.bids.values_mut() {
+            if let Some(pos) = level.orders.iter().position(|e| e.order_id == order_id) {
+                let remaining = level.orders[pos].remaining;
+                level.orders.remove(pos);
+                self.events.push(SimEvent::OrderCanceled {
+                    order_id,
+                    remaining_quantity: remaining,
+                    timestamp,
+                });
+                self.bids.retain(|_, l| !l.is_empty());
+                return true;
             }
         }
-        None
-    }
-
-    /// Rebuild a book side without the given order_id.
-    fn rebuild_without(
-        &self,
-        mut book: BTreeMap<OrderedPrice, PriceLevel>,
-        order_id: OrderId,
-    ) -> BTreeMap<OrderedPrice, PriceLevel> {
-        for level in book.values_mut() {
-            level.orders.retain(|e| e.order_id != order_id);
+        // Search asks
+        for level in self.asks.values_mut() {
+            if let Some(pos) = level.orders.iter().position(|e| e.order_id == order_id) {
+                let remaining = level.orders[pos].remaining;
+                level.orders.remove(pos);
+                self.events.push(SimEvent::OrderCanceled {
+                    order_id,
+                    remaining_quantity: remaining,
+                    timestamp,
+                });
+                self.asks.retain(|_, l| !l.is_empty());
+                return true;
+            }
         }
-        book.retain(|_, level| !level.is_empty());
-        book
+        false
     }
 
     /// Get the best bid price.
@@ -500,11 +439,6 @@ impl SimEngine {
     }
 }
 
-/// Round fee UP (never undercharge, spec §7.2).
-fn round_up_fee(v: Decimal) -> Decimal {
-    v.round_dp_with_strategy(FEE_DP, RoundingStrategy::AwayFromZero)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -558,7 +492,6 @@ mod tests {
         engine.submit_order(maker, Side::SELL, Price::from_u64(50000), Decimal::from(3), 1000);
         engine.submit_order(taker, Side::BUY, Price::from_u64(50000), Decimal::from(1), 1001);
 
-        // 2 remaining on the ask
         assert_eq!(engine.ask_depth(), Decimal::from(2));
         assert_eq!(engine.trade_count(), 1);
     }
@@ -587,7 +520,6 @@ mod tests {
         engine.submit_order(maker, Side::SELL, Price::from_u64(50200), Decimal::from(1), 1000);
         engine.submit_order(taker, Side::BUY, Price::from_u64(50100), Decimal::from(1), 1001);
 
-        // No match, both rest
         assert_eq!(engine.order_count(), 2);
         assert_eq!(engine.trade_count(), 0);
     }
@@ -621,13 +553,11 @@ mod tests {
         engine.submit_order(maker, Side::SELL, Price::from_u64(50000), Decimal::from(1), 1000);
         engine.submit_order(taker, Side::BUY, Price::from_u64(50000), Decimal::from(1), 1001);
 
-        // Find the trade event
         let trade = engine.events.iter().find(|e| matches!(e, SimEvent::TradeExecuted { .. }));
         match trade {
             Some(SimEvent::TradeExecuted { maker_fee, taker_fee, .. }) => {
-                // value = 50000, maker_rate = 0.0002, taker_rate = 0.0005
-                assert_eq!(*maker_fee, Decimal::from(10)); // 50000 * 0.0002
-                assert_eq!(*taker_fee, Decimal::from(25)); // 50000 * 0.0005
+                assert_eq!(*maker_fee, Decimal::from(10));
+                assert_eq!(*taker_fee, Decimal::from(25));
             }
             _ => panic!("Expected TradeExecuted event"),
         }
@@ -673,14 +603,11 @@ mod tests {
         let late = AccountId::new();
         let taker = AccountId::new();
 
-        // Same price, early submits first
         engine.submit_order(early, Side::SELL, Price::from_u64(50000), Decimal::from(1), 100);
         engine.submit_order(late, Side::SELL, Price::from_u64(50000), Decimal::from(1), 200);
 
-        // Taker buys 1 — should match early's order first
         engine.submit_order(taker, Side::BUY, Price::from_u64(50000), Decimal::from(1), 300);
 
-        // Only late's order remains
         assert_eq!(engine.ask_depth(), Decimal::from(1));
         let trade = engine.events.iter().find(|e| matches!(e, SimEvent::TradeExecuted { .. }));
         match trade {

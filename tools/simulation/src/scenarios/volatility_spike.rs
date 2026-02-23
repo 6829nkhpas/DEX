@@ -47,7 +47,6 @@ impl Default for VolatilitySpikeConfig {
 /// Tracks how many orders get filled at each price level.
 pub fn run(engine: &mut SimEngine, config: &VolatilitySpikeConfig) -> ScenarioResult {
     let mut total_orders: u64 = 0;
-    let mut total_trades: u64 = 0;
     let base_timestamp: i64 = 1_000_000_000;
 
     // Seed initial book with bid/ask around initial_price
@@ -97,7 +96,7 @@ pub fn run(engine: &mut SimEngine, config: &VolatilitySpikeConfig) -> ScenarioRe
         total_orders += 1;
     }
 
-    total_trades = engine.trade_count() as u64;
+    let total_trades = engine.trade_count() as u64;
     let events_count = engine.events.len();
 
     let final_price = if config.is_drop {
