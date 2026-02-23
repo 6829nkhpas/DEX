@@ -1,0 +1,167 @@
+openapi: 3.0.3
+info:
+  title: API Gateway
+  description: Distributed Exchange REST API endpoints
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/v1
+paths:
+  /orders:
+    post:
+      summary: Create Order
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "200":
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+  /orders/{id}:
+    get:
+      summary: Get Order
+      description: Inferred from Service Boundaries
+      operationId: getOrder
+      x-inferred: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+    delete:
+      summary: Cancel Order
+      operationId: cancelOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: OK
+  /accounts/{id}:
+    get:
+      summary: Get Account
+      description: Inferred from Service Boundaries
+      operationId: getAccount
+      x-inferred: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Account information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_id:
+                    type: string
+                  balances:
+                    type: object
+                    additionalProperties:
+                      type: string
+
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required:
+        - account_id
+        - symbol
+        - side
+        - price
+        - quantity
+        - time_in_force
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [BUY, SELL]
+        price:
+          type: string
+        quantity:
+          type: string
+        time_in_force:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [GTC, IOC, FOK, GTD]
+            value:
+              type: integer
+              format: int64
+    CancelOrderRequest:
+      type: object
+      required:
+        - account_id
+      properties:
+        account_id:
+          type: string
+          format: uuid
+    OrderResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+    Order:
+      type: object
+      properties:
+        order_id:
+          type: string
+        account_id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+        price:
+          type: string
+        quantity:
+          type: string
+        filled_quantity:
+          type: string
+        remaining_quantity:
+          type: string
+        status:
+          type: object
+        time_in_force:
+          type: object
+        created_at:
+          type: integer
+        updated_at:
+          type: integer
+        version:
+          type: integer

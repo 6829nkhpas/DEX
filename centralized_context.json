@@ -1,0 +1,235 @@
+{
+  "project": {
+    "name": "DEX",
+    "description": "Distributed Exchange",
+    "repo": "https://github.com/6829nkhpas/DEX",
+    "spec_version": "1.0.0"
+  },
+  "apis": [
+    {
+      "service": "Order Service",
+      "path": "/v1/orders",
+      "method": "POST",
+      "request_schema": "CreateOrderRequest",
+      "response_schema": "OrderResponse",
+      "auth": true,
+      "examples": {
+        "request": {
+          "account_id": "01939d7f-8e4a-7890-a123-456789abcdef",
+          "symbol": "BTC/USDT",
+          "side": "BUY",
+          "price": "50000.00",
+          "quantity": "1.0",
+          "time_in_force": { "type": "GTC" }
+        },
+        "response": {
+          "order_id": "123e4567-e89b-12d3-a456-426614174000",
+          "status": "PENDING"
+        }
+      }
+    },
+    {
+      "service": "Order Service",
+      "path": "/v1/orders/:id",
+      "method": "DELETE",
+      "request_schema": "CancelOrderRequest",
+      "response_schema": "None",
+      "auth": true,
+      "examples": {
+        "request": {
+          "account_id": "01939d7f-8e4a-7890-a123-456789abcdef"
+        }
+      }
+    },
+    {
+      "service": "Order Service",
+      "path": "/v1/orders/:id",
+      "method": "GET",
+      "request_schema": "None",
+      "response_schema": "Order",
+      "auth": true,
+      "examples": {
+        "response": {
+          "order_id": "1234",
+          "account_id": "1234",
+          "symbol": "BTC/USDT",
+          "side": "BUY",
+          "price": "50000.00",
+          "quantity": "1.0",
+          "filled_quantity": "0.0",
+          "remaining_quantity": "1.0",
+          "status": { "state": "PENDING" },
+          "time_in_force": { "type": "GTC" },
+          "created_at": 1708123456789000000,
+          "updated_at": 1708123456789000000,
+          "version": 0
+        }
+      }
+    },
+    {
+      "service": "Account Service",
+      "path": "/v1/accounts/:id",
+      "method": "GET",
+      "request_schema": "None",
+      "response_schema": "Account",
+      "auth": true,
+      "examples": {
+        "response": {
+          "account_id": "1234",
+          "balances": {
+            "BTC": "1.0"
+          }
+        }
+      }
+    }
+  ],
+  "websockets": [
+    {
+      "channel": "market_data",
+      "direction": "server",
+      "message_schema": "MarketDataUpdated",
+      "examples": {
+        "snapshot": {
+          "event_type": "MarketDataSnapshot",
+          "sequence": 1000,
+          "timestamp": 1708123456789000000,
+          "payload": { "symbol": "BTC/USDT", "bids": [], "asks": [] }
+        },
+        "delta": {
+          "event_type": "MarketDataUpdated",
+          "sequence": 1001,
+          "timestamp": 1708123456789000000,
+          "payload": {
+            "symbol": "BTC/USDT",
+            "last_price": "50000.00",
+            "24h_volume": "1234.56",
+            "24h_high": "51000.00",
+            "24h_low": "49000.00",
+            "mark_price": "50010.00"
+          }
+        }
+      }
+    }
+  ],
+  "types": {
+    "Price": {
+      "fields": { "value": "string" },
+      "serialization": "string representing decimal",
+      "examples": ["50000.00"]
+    },
+    "Quantity": {
+      "fields": { "value": "string" },
+      "serialization": "string representing decimal",
+      "examples": ["1.0"]
+    },
+    "OrderStatus": {
+      "fields": { "state": "string", "reason": "string (optional)" },
+      "serialization": "JSON object with state tag",
+      "examples": [{ "state": "PENDING" }, { "state": "CANCELED", "reason": "USER_REQUESTED" }]
+    },
+    "TimeInForce": {
+      "fields": { "type": "string", "value": "integer (optional)" },
+      "serialization": "JSON object with type tag",
+      "examples": [{ "type": "GTC" }, { "type": "GTD", "value": 1708123456789000000 }]
+    },
+    "Order": {
+      "fields": {
+        "order_id": "string",
+        "account_id": "string",
+        "symbol": "string",
+        "side": "string",
+        "price": "Price",
+        "quantity": "Quantity",
+        "filled_quantity": "Quantity",
+        "remaining_quantity": "Quantity",
+        "status": "OrderStatus",
+        "time_in_force": "TimeInForce",
+        "created_at": "integer",
+        "updated_at": "integer",
+        "version": "integer"
+      },
+      "serialization": "JSON object",
+      "examples": [{
+        "order_id": "123e4567-e89b-12d3-a456-426614174000",
+        "account_id": "01939d7f-8e4a-7890-a123-456789abcdef",
+        "symbol": "BTC/USDT",
+        "side": "BUY",
+        "price": "50000.00",
+        "quantity": "1.0",
+        "filled_quantity": "0.3",
+        "remaining_quantity": "0.7",
+        "status": { "state": "PARTIAL" },
+        "time_in_force": { "type": "GTC" },
+        "created_at": 1708123456789000000,
+        "updated_at": 1708123456790000000,
+        "version": 1
+      }]
+    }
+  },
+  "contracts": {
+    "Vault": {
+      "abi": "{}",
+      "read_methods": [
+        "is_whitelisted",
+        "get_balance",
+        "get_account_balances",
+        "is_paused",
+        "admin"
+      ],
+      "write_methods": [
+        "deposit",
+        "confirm_deposit"
+      ],
+      "notes": "Smart contract ABIs for Rust typically extracted from tests or generated via CosmWasm/Solidity. Extracted available Rust method signatures here."
+    }
+  },
+  "events": [
+    {
+      "name": "OrderSubmitted",
+      "source_service": "OrderService",
+      "schema": { "order_id": "string", "account_id": "string", "symbol": "string", "side": "string", "type": "string", "price": "string", "quantity": "string", "time_in_force": "string" },
+      "example": { "event_type": "OrderSubmitted", "payload": { "order_id": "uuid", "account_id": "uuid", "symbol": "BTC/USDT", "side": "BUY", "type": "LIMIT", "price": "50000.00", "quantity": "1.0", "time_in_force": "GTC" } },
+      "seq_rules": "Strictly monotonic sequence number per event."
+    },
+    {
+      "name": "MarketDataUpdated",
+      "source_service": "MarketDataService",
+      "schema": { "symbol": "string", "last_price": "string", "24h_volume": "string", "24h_high": "string", "24h_low": "string", "mark_price": "string" },
+      "example": { "event_type": "MarketDataUpdated", "payload": { "symbol": "BTC/USDT", "last_price": "50000.00", "24h_volume": "1234.56", "24h_high": "51000.00", "24h_low": "49000.00", "mark_price": "50010.00" } },
+      "seq_rules": "Symbol sequence number."
+    }
+  ],
+  "services": {
+    "API Gateway": {
+      "owner_dir": "/services/gateway",
+      "inputs": ["HTTP Requests", "WebSockets"],
+      "outputs": ["gRPC downstream calls"],
+      "dependencies": ["Order Service", "Account Service"]
+    },
+    "Order Service": {
+      "owner_dir": "/services/order",
+      "inputs": ["gRPC CreateOrder"],
+      "outputs": ["Order Events"],
+      "dependencies": ["Account Service", "Risk Service", "Matching Engine"]
+    }
+  },
+  "errors": [
+    {
+      "code": "INSUFFICIENT_BALANCE",
+      "message": "Available balance too low",
+      "http_status": 400,
+      "service": "Account Service"
+    }
+  ],
+  "versioning": {
+    "spec_version": "1.0.0",
+    "schema_versioning_strategy": "Backward compatible additions only. Breaking changes require new major version.",
+    "migration_notes": "None"
+  },
+  "constraints": {
+    "numeric_precision": "18 decimal places internally. Use Decimal fixed-point type serialized to string JSON.",
+    "timestamp_format": "Unix nanoseconds (i64)",
+    "sequence_rules": "No gaps. Strictly increasing.",
+    "determinism_rules": "Same inputs -> Same outputs. No floating defaults. Monotonic clocks."
+  }
+}
