@@ -201,7 +201,9 @@ mod tests {
         let report = analyze(&engine.events);
         // Single level fill = zero slippage for taker
         for rec in &report.records {
-            assert_eq!(rec.slippage_bps, "0.0000");
+            // Zero slippage at single level
+            let bps: Decimal = rec.slippage_bps.parse().unwrap();
+            assert_eq!(bps, Decimal::ZERO);
         }
     }
 }
