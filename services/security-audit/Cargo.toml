@@ -13,6 +13,7 @@ thiserror = "1.0"
 chrono = "0.4"
 uuid = { version = "1.11", features = ["v7"] }
 rand = "0.8"
+rust_decimal = "1.36"
 
 [dev-dependencies]
 proptest = "1.5"
