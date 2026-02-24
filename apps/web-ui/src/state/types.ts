@@ -117,12 +117,20 @@ export interface AccountDeltaPayload {
 // Unified store state
 // ---------------------------------------------------------------------------
 
+/** Store metrics for monitoring dropped events and gap detection. */
+export interface StoreMetrics {
+    events_ignored: number;
+    gaps_detected: number;
+    buffer_size_by_stream: Map<string, number>;
+}
+
 /** Root state container — all domains. */
 export interface StoreState {
     orderbooks: Map<string, OrderbookState>;  // symbol → orderbook
     tickers: Map<string, TickerState>;        // symbol → ticker
     trades: Map<string, TradeRecord[]>;       // symbol → bounded trade list
     account: AccountState | null;
+    metrics: StoreMetrics;
 }
 
 // ---------------------------------------------------------------------------

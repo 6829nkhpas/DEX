@@ -24,10 +24,13 @@ import type {
     TradePayload,
     AccountSnapshotPayload,
     AccountDeltaPayload,
+    SnapshotEvent,
+    DeltaEvent,
 } from "./types";
 import {
     isDuplicate,
     recordEvent,
+    compareSeq,
     applyOrderbookSnapshot,
     applyOrderbookDelta,
     applyTickerDelta,
@@ -51,6 +54,11 @@ export class DexStateStore {
     private state: StoreState;
     private seqMeta: Map<string, SeqMeta>; // domain key → dedup metadata
     private listeners: StateChangeListener[] = [];
+    private snapshotListeners: ((channel: string, params: Record<string, string>, sinceSeq: number) => void)[] = [];
+
+    // per-stream delta buffer for gaps
+    private deltaBuffers: Map<string, BaseEvent<unknown>[]> = new Map();
+    private readonly MAX_BUFFER_SIZE = 10_000;
 
     constructor() {
         this.state = {
@@ -58,6 +66,11 @@ export class DexStateStore {
             tickers: new Map(),
             trades: new Map(),
             account: null,
+            metrics: {
+                events_ignored: 0,
+                gaps_detected: 0,
+                buffer_size_by_stream: new Map(),
+            }
         };
         this.seqMeta = new Map();
     }
@@ -76,12 +89,51 @@ export class DexStateStore {
         const domainKey = this.domainKey(event);
         const meta = this.getSeqMeta(domainKey);
 
-        // Dedup guard
-        if (isDuplicate(event, meta)) {
+        if (event.event_type === "snapshot") {
+            // Apply snapshot atomically, wholesale state replacement
+            this.applyEvent(event);
+
+            // Update seenIds and forcefully reset sequence strictly to the snapshot
+            const nextMeta = recordEvent(event, meta);
+            nextMeta.lastSeq = event.sequence;
+            this.seqMeta.set(domainKey, nextMeta);
+
+            // Apply any buffered deltas that now fit in sequence order
+            this.flushBuffer(domainKey);
+            this.notifyListeners();
             return;
         }
 
-        // Route to the correct reducer
+        // Deltas
+        if (isDuplicate(event, meta)) {
+            this.state.metrics.events_ignored++;
+            return;
+        }
+
+        const expectedSeq = String(BigInt(meta.lastSeq) + 1n);
+        const cmp = compareSeq(event.sequence, expectedSeq);
+
+        if (cmp > 0 && meta.lastSeq !== "0") {
+            // > lastSeq + 1 gap detection
+            this.state.metrics.gaps_detected++;
+            this.bufferDelta(domainKey, event);
+            return;
+        } else if (cmp > 0 && meta.lastSeq === "0") {
+            // Initial snapshot not yet received, buffer it anyway and wait
+            this.bufferDelta(domainKey, event);
+            return;
+        }
+
+        // In-order delta apply
+        this.applyEvent(event);
+        this.seqMeta.set(domainKey, recordEvent(event, meta));
+
+        // Check if application unlocks further buffered deltas
+        this.flushBuffer(domainKey);
+        this.notifyListeners();
+    }
+
+    private applyEvent(event: BaseEvent<unknown>): void {
         const source = event.source;
         const type = event.event_type;
 
@@ -105,17 +157,88 @@ export class DexStateStore {
                     this.dispatchAccountDelta(event as BaseEvent<AccountDeltaPayload>);
                 }
                 break;
+        }
+    }
 
-            default:
-                // Unknown source — ignore
-                break;
+    private bufferDelta(domainKey: string, event: BaseEvent<unknown>): void {
+        let buffer = this.deltaBuffers.get(domainKey);
+        if (!buffer) {
+            buffer = [];
+            this.deltaBuffers.set(domainKey, buffer);
         }
 
-        // Record event for dedup
-        this.seqMeta.set(domainKey, recordEvent(event, meta));
+        buffer.push(event);
+        this.state.metrics.buffer_size_by_stream.set(domainKey, buffer.length);
 
-        // Notify listeners
-        this.notifyListeners();
+        // Cap overflow policy check
+        if (buffer.length > this.MAX_BUFFER_SIZE) {
+            buffer.length = 0; // Clear it
+            this.state.metrics.buffer_size_by_stream.set(domainKey, 0);
+            this.triggerSnapshotRequest(event, 0); // Request full snapshot
+            return;
+        }
+
+        // Otherwise request snapshot since last recorded seq
+        const meta = this.getSeqMeta(domainKey);
+        this.triggerSnapshotRequest(event, Number(meta.lastSeq));
+    }
+
+    private flushBuffer(domainKey: string): void {
+        let buffer = this.deltaBuffers.get(domainKey);
+        if (!buffer || buffer.length === 0) return;
+
+        // Sort ascending by sequence for in order application
+        buffer.sort((a, b) => compareSeq(a.sequence, b.sequence));
+
+        let i = 0;
+
+        while (i < buffer.length) {
+            const event = buffer[i];
+            const meta = this.getSeqMeta(domainKey);
+
+            if (isDuplicate(event, meta)) {
+                this.state.metrics.events_ignored++;
+                i++;
+                continue;
+            }
+
+            const expectedSeq = String(BigInt(meta.lastSeq) + 1n);
+            const cmp = compareSeq(event.sequence, expectedSeq);
+
+            if (cmp === 0) {
+                // In exact order, apply it
+                this.applyEvent(event);
+                this.seqMeta.set(domainKey, recordEvent(event, meta));
+                i++;
+            } else if (cmp > 0) {
+                // Another gap remains, wait for snapshot fill
+                break;
+            }
+        }
+
+        // Prune the applied (or discarded) events
+        if (i > 0) {
+            buffer.splice(0, i);
+            this.state.metrics.buffer_size_by_stream.set(domainKey, buffer.length);
+        }
+    }
+
+    private triggerSnapshotRequest(event: BaseEvent<unknown>, sinceSeq: number): void {
+        const payload = event.payload as Record<string, unknown> | null;
+        let symbol = "";
+        let account_id = "";
+        if (payload && typeof payload === "object") {
+            if ("symbol" in payload) symbol = String(payload.symbol);
+            if ("account_id" in payload) account_id = String(payload.account_id);
+        }
+
+        const params: Record<string, string> = {};
+        if (symbol) params["symbol"] = symbol;
+        if (account_id) params["account_id"] = account_id;
+
+        for (const listener of this.snapshotListeners) {
+            listener(event.source, params, sinceSeq);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -157,6 +280,14 @@ export class DexStateStore {
         // Return unsubscribe function
         return () => {
             this.listeners = this.listeners.filter((l) => l !== listener);
+        };
+    }
+
+    /** Register a callback to be invoked when the store needs to request a snapshot (e.g., due to gap). */
+    onRequestSnapshot(listener: (channel: string, params: Record<string, string>, sinceSeq: number) => void): () => void {
+        this.snapshotListeners.push(listener);
+        return () => {
+            this.snapshotListeners = this.snapshotListeners.filter((l) => l !== listener);
         };
     }
 

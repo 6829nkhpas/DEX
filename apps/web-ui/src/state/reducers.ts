@@ -44,7 +44,7 @@ export const MAX_SEEN_IDS = 10_000;
  * Compare two string-encoded integer sequences.
  * Returns negative if a < b, 0 if equal, positive if a > b.
  */
-function compareSeq(a: string, b: string): number {
+export function compareSeq(a: string, b: string): number {
     const diff = BigInt(a) - BigInt(b);
     if (diff < 0n) return -1;
     if (diff > 0n) return 1;
