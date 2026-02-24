@@ -23,6 +23,9 @@ pub enum AppError {
     
     #[error("Service unavailable: {0}")]
     ServiceUnavailable(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
 }
 
 impl IntoResponse for AppError {
@@ -40,6 +43,7 @@ impl IntoResponse for AppError {
                 msg,
                 "SERVICE_UNAVAILABLE",
             ),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg, "NOT_FOUND"),
             AppError::InternalError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),

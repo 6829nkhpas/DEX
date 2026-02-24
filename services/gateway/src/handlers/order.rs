@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 use types::ids::OrderId;
+use types::order::Order;
 use axum::http::StatusCode;
 
 pub async fn create_order(
@@ -79,4 +80,49 @@ pub async fn cancel_order(
     }
 
     Ok(StatusCode::OK)
+}
+
+pub async fn get_order(
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    Path(order_id): Path<String>,
+) -> Result<Json<Order>, AppError> {
+    // 1. Rate limiting
+    state
+        .rate_limiter
+        .check_rate_limit(&format!("{}:order_query", user.account_id), 60, 1.0)?;
+
+    // 2. Forward to internal Order Service
+    let res = state
+        .http_client
+        .get(format!(
+            "{}/internal/orders/{}",
+            state.internal_services_url, order_id
+        ))
+        .send()
+        .await
+        .map_err(|e| AppError::ServiceUnavailable(format!("Order service error: {}", e)))?;
+
+    if res.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(AppError::NotFound(format!("Order {} not found", order_id)));
+    }
+
+    if !res.status().is_success() {
+        return Err(AppError::BadRequest("Failed to retrieve order".into()));
+    }
+
+    // 3. Deserialize Order
+    let order = res
+        .json::<Order>()
+        .await
+        .map_err(|_| AppError::InternalError(anyhow::anyhow!("Invalid order parsing")))?;
+
+    // 4. Identity check — caller must own the order
+    if user.account_id != order.account_id {
+        return Err(AppError::Unauthorized(
+            "Cannot view order for another account".into(),
+        ));
+    }
+
+    Ok(Json(order))
 }
