@@ -1,0 +1,206 @@
+{
+  "contract_name": "Vault",
+  "abi_version": "1.0.0",
+  "source": "chain/contracts/src/vault.rs",
+  "description": "Asset storage, deposits, balance tracking, and token whitelist — implements custody layer per spec §16",
+  "constructor": {
+    "name": "new",
+    "inputs": [
+      { "name": "admin", "type": "String", "description": "Initial admin address" }
+    ],
+    "outputs": { "type": "Vault" }
+  },
+  "methods": [
+    {
+      "name": "add_to_whitelist",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" },
+        { "name": "token",  "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["Unauthorized"]
+    },
+    {
+      "name": "remove_from_whitelist",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" },
+        { "name": "token",  "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["Unauthorized"]
+    },
+    {
+      "name": "is_whitelisted",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [
+        { "name": "token", "type": "String" }
+      ],
+      "outputs": { "type": "bool" },
+      "errors": []
+    },
+    {
+      "name": "deposit",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "account_id",  "type": "AccountId" },
+        { "name": "asset",       "type": "String" },
+        { "name": "amount",      "type": "Decimal" },
+        { "name": "tx_id",       "type": "String" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, VaultError>" },
+      "errors": ["Paused", "Reentrancy", "TokenNotWhitelisted", "InvalidAmount", "Overflow"],
+      "events": ["DepositDetected"]
+    },
+    {
+      "name": "confirm_deposit",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "account_id",     "type": "AccountId" },
+        { "name": "asset",          "type": "String" },
+        { "name": "amount",         "type": "Decimal" },
+        { "name": "tx_id",          "type": "String" },
+        { "name": "confirmations",  "type": "u64" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, VaultError>" },
+      "errors": ["Paused"],
+      "events": ["DepositConfirmed"]
+    },
+    {
+      "name": "get_balance",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [
+        { "name": "account_id", "type": "AccountId" },
+        { "name": "asset",      "type": "String" }
+      ],
+      "outputs": { "type": "Decimal" },
+      "errors": []
+    },
+    {
+      "name": "get_account_balances",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [
+        { "name": "account_id", "type": "AccountId" }
+      ],
+      "outputs": { "type": "Option<Map<String, Decimal>>" },
+      "errors": []
+    },
+    {
+      "name": "safe_debit",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "account_id", "type": "AccountId" },
+        { "name": "asset",      "type": "String" },
+        { "name": "amount",     "type": "Decimal" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["AccountNotFound", "InsufficientBalance", "Overflow"]
+    },
+    {
+      "name": "pause",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["Unauthorized"]
+    },
+    {
+      "name": "unpause",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["Unauthorized"]
+    },
+    {
+      "name": "is_paused",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "bool" },
+      "errors": []
+    },
+    {
+      "name": "set_admin",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "current_admin", "type": "String" },
+        { "name": "new_admin",     "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), VaultError>" },
+      "errors": ["Unauthorized"]
+    },
+    {
+      "name": "admin",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "String" },
+      "errors": []
+    },
+    {
+      "name": "events",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    },
+    {
+      "name": "drain_events",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    }
+  ],
+  "types": {
+    "AccountId": {
+      "description": "UUID v7 account identifier",
+      "underlying": "Uuid"
+    },
+    "Decimal": {
+      "description": "Deterministic fixed-point decimal (rust_decimal)",
+      "underlying": "i128 with scale"
+    },
+    "ContractEvent": {
+      "description": "Enum of all contract event variants",
+      "variants": [
+        "DepositDetected",
+        "DepositConfirmed",
+        "WithdrawalRequested",
+        "WithdrawalCompleted",
+        "CommitmentSubmitted",
+        "DisputeRaised"
+      ]
+    },
+    "VaultError": {
+      "description": "Enum of all vault error variants",
+      "variants": [
+        "TokenNotWhitelisted",
+        "Paused",
+        "Reentrancy",
+        "InsufficientBalance",
+        "Unauthorized",
+        "AccountNotFound",
+        "InvalidAmount",
+        "Overflow"
+      ]
+    }
+  }
+}

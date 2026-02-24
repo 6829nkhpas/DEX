@@ -1,7 +1,7 @@
 use crate::handlers::{account, order, ws};
 use crate::state::AppState;
 use axum::{
-    routing::{delete, get, post},
+    routing::{get, post},
     Router,
 };
 use tower_http::cors::CorsLayer;
@@ -10,7 +10,7 @@ use tower_http::trace::TraceLayer;
 pub fn create_router(state: AppState) -> Router {
     let api_routes = Router::new()
         .route("/orders", post(order::create_order))
-        .route("/orders/:id", delete(order::cancel_order))
+        .route("/orders/:id", get(order::get_order).delete(order::cancel_order))
         .route("/accounts/:id", get(account::get_account))
         .route("/ws", get(ws::ws_handler));
 
