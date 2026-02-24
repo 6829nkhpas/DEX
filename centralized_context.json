@@ -60,8 +60,8 @@
           "remaining_quantity": "1.0",
           "status": { "state": "PENDING" },
           "time_in_force": { "type": "GTC" },
-          "created_at": 1708123456789000000,
-          "updated_at": 1708123456789000000,
+          "created_at": "1708123456789000000",
+          "updated_at": "1708123456789000000",
           "version": 0
         }
       }
@@ -92,19 +92,19 @@
         "snapshot": {
           "event_type": "MarketDataSnapshot",
           "sequence": 1000,
-          "timestamp": 1708123456789000000,
+          "timestamp": "1708123456789000000",
           "payload": { "symbol": "BTC/USDT", "bids": [], "asks": [] }
         },
         "delta": {
           "event_type": "MarketDataUpdated",
           "sequence": 1001,
-          "timestamp": 1708123456789000000,
+          "timestamp": "1708123456789000000",
           "payload": {
             "symbol": "BTC/USDT",
             "last_price": "50000.00",
-            "24h_volume": "1234.56",
-            "24h_high": "51000.00",
-            "24h_low": "49000.00",
+            "volume_24h": "1234.56",
+            "high_24h": "51000.00",
+            "low_24h": "49000.00",
             "mark_price": "50010.00"
           }
         }
@@ -122,15 +122,20 @@
       "serialization": "string representing decimal",
       "examples": ["1.0"]
     },
+    "Timestamp": {
+      "fields": { "value": "string" },
+      "serialization": "string representing Unix nanoseconds (i64)",
+      "examples": ["1708123456789000000"]
+    },
     "OrderStatus": {
       "fields": { "state": "string", "reason": "string (optional)" },
       "serialization": "JSON object with state tag",
       "examples": [{ "state": "PENDING" }, { "state": "CANCELED", "reason": "USER_REQUESTED" }]
     },
     "TimeInForce": {
-      "fields": { "type": "string", "value": "integer (optional)" },
+      "fields": { "type": "string", "value": "string (optional, Unix nanos)" },
       "serialization": "JSON object with type tag",
-      "examples": [{ "type": "GTC" }, { "type": "GTD", "value": 1708123456789000000 }]
+      "examples": [{ "type": "GTC" }, { "type": "GTD", "value": "1708123456789000000" }]
     },
     "Order": {
       "fields": {
@@ -144,8 +149,8 @@
         "remaining_quantity": "Quantity",
         "status": "OrderStatus",
         "time_in_force": "TimeInForce",
-        "created_at": "integer",
-        "updated_at": "integer",
+        "created_at": "Timestamp",
+        "updated_at": "Timestamp",
         "version": "integer"
       },
       "serialization": "JSON object",
@@ -160,27 +165,87 @@
         "remaining_quantity": "0.7",
         "status": { "state": "PARTIAL" },
         "time_in_force": { "type": "GTC" },
-        "created_at": 1708123456789000000,
-        "updated_at": 1708123456790000000,
+        "created_at": "1708123456789000000",
+        "updated_at": "1708123456790000000",
         "version": 1
+      }]
+    },
+    "MarketData": {
+      "fields": {
+        "symbol": "string",
+        "last_price": "Price",
+        "volume_24h": "Quantity",
+        "high_24h": "Price",
+        "low_24h": "Price",
+        "mark_price": "Price"
+      },
+      "serialization": "JSON object",
+      "examples": [{
+        "symbol": "BTC/USDT",
+        "last_price": "50000.00",
+        "volume_24h": "1234.56",
+        "high_24h": "51000.00",
+        "low_24h": "49000.00",
+        "mark_price": "50010.00"
       }]
     }
   },
   "contracts": {
     "Vault": {
-      "abi": "{}",
+      "abi_path": "chain/contracts/abi/vault.json",
       "read_methods": [
         "is_whitelisted",
         "get_balance",
         "get_account_balances",
         "is_paused",
-        "admin"
+        "admin",
+        "events"
       ],
       "write_methods": [
+        "add_to_whitelist",
+        "remove_from_whitelist",
         "deposit",
-        "confirm_deposit"
+        "confirm_deposit",
+        "safe_debit",
+        "pause",
+        "unpause",
+        "set_admin",
+        "drain_events"
       ],
-      "notes": "Smart contract ABIs for Rust typically extracted from tests or generated via CosmWasm/Solidity. Extracted available Rust method signatures here."
+      "notes": "15 methods. ABI hand-authored from Rust source (no WASM bindings)."
+    },
+    "WithdrawalQueue": {
+      "abi_path": "chain/contracts/abi/withdrawal.json",
+      "read_methods": [
+        "queue",
+        "events"
+      ],
+      "write_methods": [
+        "request_withdrawal",
+        "process_withdrawal",
+        "batch_withdraw",
+        "cancel_withdrawal",
+        "drain_events"
+      ],
+      "notes": "Manages withdrawal lifecycle: request → queue → delay → process → complete."
+    },
+    "CommitmentStore": {
+      "abi_path": "chain/contracts/abi/commitment.json",
+      "read_methods": [
+        "get_latest_root",
+        "history",
+        "disputes",
+        "events"
+      ],
+      "write_methods": [
+        "submit_root",
+        "raise_dispute",
+        "resolve_dispute",
+        "admin_override",
+        "grant_operator",
+        "drain_events"
+      ],
+      "notes": "State commitment + fraud proof layer."
     }
   },
   "events": [
@@ -194,8 +259,8 @@
     {
       "name": "MarketDataUpdated",
       "source_service": "MarketDataService",
-      "schema": { "symbol": "string", "last_price": "string", "24h_volume": "string", "24h_high": "string", "24h_low": "string", "mark_price": "string" },
-      "example": { "event_type": "MarketDataUpdated", "payload": { "symbol": "BTC/USDT", "last_price": "50000.00", "24h_volume": "1234.56", "24h_high": "51000.00", "24h_low": "49000.00", "mark_price": "50010.00" } },
+      "schema": { "symbol": "string", "last_price": "string", "volume_24h": "string", "high_24h": "string", "low_24h": "string", "mark_price": "string" },
+      "example": { "event_type": "MarketDataUpdated", "payload": { "symbol": "BTC/USDT", "last_price": "50000.00", "volume_24h": "1234.56", "high_24h": "51000.00", "low_24h": "49000.00", "mark_price": "50010.00" } },
       "seq_rules": "Symbol sequence number."
     }
   ],
@@ -224,11 +289,11 @@
   "versioning": {
     "spec_version": "1.0.0",
     "schema_versioning_strategy": "Backward compatible additions only. Breaking changes require new major version.",
-    "migration_notes": "None"
+    "migration_notes": "v1.0.1: Timestamps changed from integer to string-encoded Unix nanos. Market data keys renamed (24h_* → *_24h)."
   },
   "constraints": {
     "numeric_precision": "18 decimal places internally. Use Decimal fixed-point type serialized to string JSON.",
-    "timestamp_format": "Unix nanoseconds (i64)",
+    "timestamp_format": "Unix nanoseconds as string (i64 encoded as JSON string to prevent precision loss)",
     "sequence_rules": "No gaps. Strictly increasing.",
     "determinism_rules": "Same inputs -> Same outputs. No floating defaults. Monotonic clocks."
   }

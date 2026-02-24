@@ -1,0 +1,148 @@
+{
+  "contract_name": "WithdrawalQueue",
+  "abi_version": "1.0.0",
+  "source": "chain/contracts/src/withdrawal.rs",
+  "description": "Withdrawal queue and processor — request, verify, queue, process, batch, cancel. Implements spec §16.6.",
+  "constructor": {
+    "name": "new",
+    "inputs": [
+      { "name": "delay_seconds", "type": "i64", "description": "Time delay before withdrawal can be processed" }
+    ],
+    "outputs": { "type": "WithdrawalQueue" }
+  },
+  "methods": [
+    {
+      "name": "with_default_delay",
+      "mutability": "constructor",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "WithdrawalQueue" },
+      "errors": [],
+      "description": "Create queue with default 24-hour delay"
+    },
+    {
+      "name": "request_withdrawal",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "vault", "type": "&mut Vault" },
+        { "name": "account_id", "type": "AccountId" },
+        { "name": "asset", "type": "String" },
+        { "name": "amount", "type": "Decimal" },
+        { "name": "destination", "type": "String" },
+        { "name": "nonce", "type": "u64" },
+        { "name": "signature", "type": "&[u8]" },
+        { "name": "current_time", "type": "i64" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, WithdrawalError>" },
+      "errors": ["InvalidSignature", "NonceReused", "InsufficientBalance", "InvalidAmount", "Vault(*)"],
+      "events": ["WithdrawalRequested"]
+    },
+    {
+      "name": "process_withdrawal",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "withdrawal_id", "type": "Uuid" },
+        { "name": "current_time", "type": "i64" },
+        { "name": "tx_id", "type": "String" },
+        { "name": "fee", "type": "Decimal" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, WithdrawalError>" },
+      "errors": ["NotFound", "DelayNotElapsed", "AlreadyProcessed", "AlreadyCancelled"],
+      "events": ["WithdrawalCompleted"]
+    },
+    {
+      "name": "batch_withdraw",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "current_time", "type": "i64" },
+        { "name": "tx_id_prefix", "type": "String" },
+        { "name": "fee", "type": "Decimal" }
+      ],
+      "outputs": { "type": "Result<Vec<ContractEvent>, WithdrawalError>" },
+      "errors": ["EmptyBatch"],
+      "events": ["WithdrawalCompleted"]
+    },
+    {
+      "name": "cancel_withdrawal",
+      "mutability": "mutable",
+      "access": "owner_or_admin",
+      "inputs": [
+        { "name": "vault", "type": "&mut Vault" },
+        { "name": "withdrawal_id", "type": "Uuid" },
+        { "name": "caller", "type": "String" }
+      ],
+      "outputs": { "type": "Result<(), WithdrawalError>" },
+      "errors": ["NotFound", "AlreadyProcessed", "AlreadyCancelled", "Unauthorized"]
+    },
+    {
+      "name": "verify_signature",
+      "mutability": "view",
+      "access": "internal",
+      "inputs": [
+        { "name": "account_id", "type": "AccountId" },
+        { "name": "asset", "type": "String" },
+        { "name": "amount", "type": "Decimal" },
+        { "name": "nonce", "type": "u64" },
+        { "name": "destination", "type": "String" },
+        { "name": "signature", "type": "&[u8]" }
+      ],
+      "outputs": { "type": "bool" },
+      "errors": [],
+      "description": "Stub — accepts any non-empty signature. Production: ed25519 verification."
+    },
+    {
+      "name": "queue",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "VecDeque<WithdrawalRequest>" },
+      "errors": []
+    },
+    {
+      "name": "events",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    },
+    {
+      "name": "drain_events",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    }
+  ],
+  "types": {
+    "WithdrawalStatus": {
+      "description": "Status of a withdrawal request",
+      "variants": ["Pending", "Ready", "Completed", "Cancelled"]
+    },
+    "WithdrawalRequest": {
+      "fields": {
+        "id": "Uuid",
+        "account_id": "AccountId",
+        "asset": "String",
+        "amount": "Decimal",
+        "destination": "String",
+        "nonce": "u64",
+        "status": "WithdrawalStatus",
+        "requested_at": "i64",
+        "available_at": "i64"
+      }
+    },
+    "WithdrawalError": {
+      "variants": [
+        "InvalidSignature", "NonceReused", "DelayNotElapsed",
+        "NotFound", "AlreadyCancelled", "AlreadyProcessed",
+        "InsufficientBalance", "Unauthorized", "Vault(*)",
+        "InvalidAmount", "EmptyBatch"
+      ]
+    }
+  }
+}

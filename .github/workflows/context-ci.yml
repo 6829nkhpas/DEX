@@ -1,0 +1,127 @@
+name: Context CI
+
+on:
+  push:
+    paths:
+      - "centralized_context.json"
+      - "openapi/**"
+      - "types/**"
+      - "chain/contracts/abi/**"
+      - "ws/**"
+  pull_request:
+    paths:
+      - "centralized_context.json"
+      - "openapi/**"
+      - "types/**"
+      - "chain/contracts/abi/**"
+      - "ws/**"
+
+jobs:
+  json-lint:
+    name: JSON Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint centralized_context.json
+        run: python3 -m json.tool centralized_context.json > /dev/null
+      - name: Lint contract ABIs
+        run: |
+          for f in chain/contracts/abi/*.json; do
+            echo "Validating $f..."
+            python3 -m json.tool "$f" > /dev/null
+          done
+
+  openapi-validate:
+    name: OpenAPI Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate OpenAPI spec
+        run: npx -y @redocly/cli@latest lint openapi/generated-openapi.yaml --skip-rule no-server-example.com
+
+  ts-compile:
+    name: TypeScript Compile Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install TypeScript
+        run: npm install -g typescript
+      - name: Type check generated types
+        run: tsc --noEmit --strict --target ES2020 --moduleResolution node types/generated-types.ts
+
+  abi-parse:
+    name: ABI Parse Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ABI structure
+        run: |
+          for f in chain/contracts/abi/*.json; do
+            echo "Checking $f..."
+            python3 -c "
+          import json, sys
+          with open('$f') as fh:
+              abi = json.load(fh)
+          assert 'contract_name' in abi, 'Missing contract_name'
+          assert 'methods' in abi, 'Missing methods'
+          for m in abi['methods']:
+              assert 'name' in m, f'Method missing name in {m}'
+              assert 'mutability' in m, f'Method {m[\"name\"]} missing mutability'
+          print(f'  ✓ {abi[\"contract_name\"]}: {len(abi[\"methods\"])} methods')
+          "
+          done
+
+  replay-smoke:
+    name: Replay Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate context structure
+        run: |
+          python3 -c "
+          import json
+          with open('centralized_context.json') as f:
+              ctx = json.load(f)
+
+          # Required top-level keys
+          required = ['project','apis','websockets','types','contracts','events','services','errors','versioning','constraints']
+          for key in required:
+              assert key in ctx, f'Missing top-level key: {key}'
+
+          # Validate all API examples have request or response
+          for api in ctx['apis']:
+              assert 'examples' in api, f'API {api[\"path\"]} missing examples'
+
+          # Validate timestamps are strings (not integers)
+          for api in ctx['apis']:
+              ex = api.get('examples', {})
+              resp = ex.get('response', {})
+              for ts_field in ['created_at', 'updated_at']:
+                  if ts_field in resp:
+                      assert isinstance(resp[ts_field], str), f'{ts_field} must be string, got {type(resp[ts_field])}'
+
+          # Validate no 24h_ prefixed keys
+          def check_no_24h_keys(obj, path=''):
+              if isinstance(obj, dict):
+                  for k, v in obj.items():
+                      assert not k.startswith('24h_'), f'Found illegal key {k} at {path}'
+                      check_no_24h_keys(v, f'{path}.{k}')
+              elif isinstance(obj, list):
+                  for i, v in enumerate(obj):
+                      check_no_24h_keys(v, f'{path}[{i}]')
+          check_no_24h_keys(ctx)
+
+          # Validate contract ABI paths exist
+          import os
+          for name, contract in ctx['contracts'].items():
+              abi_path = contract.get('abi_path', '')
+              assert os.path.exists(abi_path), f'ABI path missing for {name}: {abi_path}'
+
+          print('✓ All replay smoke checks passed')
+          "
