@@ -108,14 +108,20 @@ On subscription, the server sends a **full snapshot** followed by incremental **
 ### Snapshot Message
 ```json
 {
-  "type": "snapshot",
-  "channel": "market_data",
-  "sequence": 1000,
+  "event_id": "evt-snapshot-1000",
+  "event_type": "snapshot",
+  "sequence": "1000",
   "timestamp": "1708123456789000000",
+  "source": "market_data",
   "payload": {
     "symbol": "BTC/USDT",
     "bids": [["50000.00", "1.5"], ["49999.00", "2.0"]],
     "asks": [["50001.00", "1.0"], ["50002.00", "0.5"]]
+  },
+  "metadata": {
+    "version": "1.0",
+    "correlation_id": "uuid-corr",
+    "causation_id": "uuid-cause"
   }
 }
 ```
@@ -123,10 +129,11 @@ On subscription, the server sends a **full snapshot** followed by incremental **
 ### Delta Message
 ```json
 {
-  "type": "delta",
-  "channel": "market_data",
-  "sequence": 1001,
+  "event_id": "evt-delta-1001",
+  "event_type": "delta",
+  "sequence": "1001",
   "timestamp": "1708123456790000000",
+  "source": "market_data",
   "payload": {
     "symbol": "BTC/USDT",
     "last_price": "50000.00",
@@ -134,6 +141,11 @@ On subscription, the server sends a **full snapshot** followed by incremental **
     "high_24h": "51000.00",
     "low_24h": "49000.00",
     "mark_price": "50010.00"
+  },
+  "metadata": {
+    "version": "1.0",
+    "correlation_id": "uuid-corr",
+    "causation_id": "uuid-cause"
   }
 }
 ```
@@ -167,8 +179,24 @@ Server replays all events from `last_seq + 1` to current, then switches to live 
   "from_seq": 996,
   "to_seq": 1005,
   "events": [
-    { "sequence": 996, "timestamp": "1708123456780000000", "payload": { "..." : "..." } },
-    { "sequence": 997, "timestamp": "1708123456781000000", "payload": { "..." : "..." } }
+    { 
+      "event_id": "evt-996", 
+      "event_type": "delta", 
+      "sequence": "996", 
+      "timestamp": "1708123456780000000", 
+      "source": "market_data", 
+      "payload": { "..." : "..." },
+      "metadata": { "version": "1.0", "correlation_id": "uuid-corr", "causation_id": "uuid-cause" }
+    },
+    { 
+      "event_id": "evt-997", 
+      "event_type": "delta", 
+      "sequence": "997", 
+      "timestamp": "1708123456781000000", 
+      "source": "market_data", 
+      "payload": { "..." : "..." },
+      "metadata": { "version": "1.0", "correlation_id": "uuid-corr", "causation_id": "uuid-cause" }
+    }
   ]
 }
 ```

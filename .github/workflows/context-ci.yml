@@ -98,6 +98,18 @@ jobs:
           for api in ctx['apis']:
               assert 'examples' in api, f'API {api[\"path\"]} missing examples'
 
+          # Validate sequence is strictly string across examples
+          def check_sequence_string(obj, path=''):
+              if isinstance(obj, dict):
+                  if 'sequence' in obj:
+                      assert isinstance(obj['sequence'], str), f'sequence must be string, got {type(obj[\"sequence\"])} at {path}'
+                  for k, v in obj.items():
+                      check_sequence_string(v, f'{path}.{k}')
+              elif isinstance(obj, list):
+                  for i, v in enumerate(obj):
+                      check_sequence_string(v, f'{path}[{i}]')
+          check_sequence_string(ctx)
+
           # Validate timestamps are strings (not integers)
           for api in ctx['apis']:
               ex = api.get('examples', {})
@@ -106,7 +118,7 @@ jobs:
                   if ts_field in resp:
                       assert isinstance(resp[ts_field], str), f'{ts_field} must be string, got {type(resp[ts_field])}'
 
-          # Validate no 24h_ prefixed keys
+          # Validate no 24h_ prefixed keys in json or markdown files
           def check_no_24h_keys(obj, path=''):
               if isinstance(obj, dict):
                   for k, v in obj.items():
@@ -114,8 +126,24 @@ jobs:
                       check_no_24h_keys(v, f'{path}.{k}')
               elif isinstance(obj, list):
                   for i, v in enumerate(obj):
+                      check_sequence_string(v, f'{path}[{i}]')
                       check_no_24h_keys(v, f'{path}[{i}]')
           check_no_24h_keys(ctx)
+
+          import glob, re
+          spec_files = glob.glob('spec/*.md') + ['ws/ws-protocol.md']
+          for f in spec_files:
+              with open(f) as fh:
+                  content = fh.read()
+              assert not re.search(r'\b24h_', content), f'Found illegal 24h_ in {f}'
+
+          # Validate Event Envelope fields
+          for ws in ctx.get('websockets', []):
+              for ex_name, ex in ws.get('examples', {}).items():
+                  for f in ['event_id', 'event_type', 'sequence', 'timestamp', 'source', 'payload', 'metadata']:
+                      assert f in ex, f'Missing envelope field {f} in WS example {ex_name}'
+                  assert isinstance(ex['sequence'], str)
+                  assert isinstance(ex['timestamp'], str)
 
           # Validate contract ABI paths exist
           import os

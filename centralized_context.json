@@ -90,15 +90,24 @@
       "message_schema": "MarketDataUpdated",
       "examples": {
         "snapshot": {
+          "event_id": "evt-idx-1000",
           "event_type": "MarketDataSnapshot",
-          "sequence": 1000,
+          "sequence": "1000",
           "timestamp": "1708123456789000000",
-          "payload": { "symbol": "BTC/USDT", "bids": [], "asks": [] }
+          "source": "MarketDataService",
+          "payload": { "symbol": "BTC/USDT", "bids": [], "asks": [] },
+          "metadata": {
+            "version": "1.0",
+            "correlation_id": "uuid-corr",
+            "causation_id": "uuid-cause"
+          }
         },
         "delta": {
+          "event_id": "evt-idx-1001",
           "event_type": "MarketDataUpdated",
-          "sequence": 1001,
+          "sequence": "1001",
           "timestamp": "1708123456789000000",
+          "source": "MarketDataService",
           "payload": {
             "symbol": "BTC/USDT",
             "last_price": "50000.00",
@@ -106,6 +115,11 @@
             "high_24h": "51000.00",
             "low_24h": "49000.00",
             "mark_price": "50010.00"
+          },
+          "metadata": {
+            "version": "1.0",
+            "correlation_id": "uuid-corr",
+            "causation_id": "uuid-cause"
           }
         }
       }
@@ -253,14 +267,30 @@
       "name": "OrderSubmitted",
       "source_service": "OrderService",
       "schema": { "order_id": "string", "account_id": "string", "symbol": "string", "side": "string", "type": "string", "price": "string", "quantity": "string", "time_in_force": "string" },
-      "example": { "event_type": "OrderSubmitted", "payload": { "order_id": "uuid", "account_id": "uuid", "symbol": "BTC/USDT", "side": "BUY", "type": "LIMIT", "price": "50000.00", "quantity": "1.0", "time_in_force": "GTC" } },
+      "example": {
+        "event_id": "evt-uuid",
+        "event_type": "OrderSubmitted",
+        "sequence": "1",
+        "timestamp": "1708123456789000000",
+        "source": "OrderService",
+        "payload": { "order_id": "uuid", "account_id": "uuid", "symbol": "BTC/USDT", "side": "BUY", "type": "LIMIT", "price": "50000.00", "quantity": "1.0", "time_in_force": "GTC" },
+        "metadata": { "version": "1.0", "correlation_id": "uuid-corr", "causation_id": "uuid-cause" }
+      },
       "seq_rules": "Strictly monotonic sequence number per event."
     },
     {
       "name": "MarketDataUpdated",
       "source_service": "MarketDataService",
       "schema": { "symbol": "string", "last_price": "string", "volume_24h": "string", "high_24h": "string", "low_24h": "string", "mark_price": "string" },
-      "example": { "event_type": "MarketDataUpdated", "payload": { "symbol": "BTC/USDT", "last_price": "50000.00", "volume_24h": "1234.56", "high_24h": "51000.00", "low_24h": "49000.00", "mark_price": "50010.00" } },
+      "example": {
+        "event_id": "evt-uuid-2",
+        "event_type": "MarketDataUpdated",
+        "sequence": "1001",
+        "timestamp": "1708123456789000000",
+        "source": "MarketDataService",
+        "payload": { "symbol": "BTC/USDT", "last_price": "50000.00", "volume_24h": "1234.56", "high_24h": "51000.00", "low_24h": "49000.00", "mark_price": "50010.00" },
+        "metadata": { "version": "1.0", "correlation_id": "uuid-corr", "causation_id": "uuid-cause" }
+      },
       "seq_rules": "Symbol sequence number."
     }
   ],

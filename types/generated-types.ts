@@ -81,7 +81,7 @@ export interface MarketData {
 export interface BaseEvent<T = unknown> {
     event_id: string;
     event_type: string;
-    sequence: number;
+    sequence: string;
     timestamp: Timestamp;
     source: string;
     payload: T;
