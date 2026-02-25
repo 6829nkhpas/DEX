@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { DexStateStore } from "../store";
-import type { BaseEvent } from "../../../../types/generated-types";
+import type { BaseEvent } from "../../../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload } from "../types";
 
 // Helper to make events
