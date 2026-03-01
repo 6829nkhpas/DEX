@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Route, Switch, Link } from "wouter";
 import { DebugPanel } from "./components/DebugPanel";
 import { useDexStore } from "./state/StoreProvider";
+import { useWallet } from "./wallet/WalletProvider";
 import type { BaseEvent } from "../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload, TradePayload, TickerDeltaPayload } from "./state/types";
 import { Side } from "../../../types/generated-types";
@@ -142,6 +143,36 @@ const NotFound = () => (
     </div>
 );
 
+/** Wallet connect/disconnect button for the header. */
+function WalletButton() {
+    const { address, isConnecting, connect, disconnect } = useWallet();
+
+    if (address) {
+        const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
+        return (
+            <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-green-400" title={address}>{short}</span>
+                <button
+                    onClick={disconnect}
+                    className="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1 transition-colors"
+                >
+                    Disconnect
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            onClick={() => connect().catch((err) => console.error("Wallet connect error:", err))}
+            disabled={isConnecting}
+            className="text-xs font-medium bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 text-white rounded px-3 py-1.5 transition-colors"
+        >
+            {isConnecting ? "Connecting…" : "Connect Wallet"}
+        </button>
+    );
+}
+
 export function App() {
     return (
         <div className="min-h-screen flex flex-col">
@@ -157,6 +188,9 @@ export function App() {
                         Trade
                     </Link>
                 </nav>
+                <div className="ml-auto">
+                    <WalletButton />
+                </div>
             </header>
 
             {/* Main Content Area */}
