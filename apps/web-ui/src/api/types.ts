@@ -25,6 +25,7 @@ export interface CreateOrderRequest {
     account_id: string;
     symbol: string;
     side: Side;
+    order_type: "LIMIT" | "MARKET";
     price: Price;
     quantity: Quantity;
     time_in_force: TimeInForce;
