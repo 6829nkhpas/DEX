@@ -1,31 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDexStore } from "../state/StoreProvider";
+import { useWallet } from "../wallet/WalletProvider";
 import { Orderbook } from "../components/Orderbook/Orderbook";
 import { TradeTape } from "../components/TradeTape/TradeTape";
 import { TickerPanel } from "../components/Ticker/TickerPanel";
 import { OrderEntry } from "../components/OrderEntry/OrderEntry";
 import { OpenOrders } from "../components/OpenOrders/OpenOrders";
 import { Positions } from "../components/Positions/Positions";
+import { AccountPanel } from "../components/Account/AccountPanel";
 
 export const MarketPage: React.FC = () => {
     const [symbol, setSymbol] = useState("BTC/USDT");
     const { client, connectionStatus } = useDexStore();
+    const { accountId } = useWallet();
 
+    // Track previous account_id so we can unsubscribe the old one on switch
+    const prevAccountId = useRef<string | null>(null);
+
+    // Market data + trades subscription (symbol-based)
     useEffect(() => {
         if (connectionStatus === "connected") {
             const params = { symbol };
 
             client.subscribe("market_data", params);
             client.subscribe("trades", params);
-            client.subscribe("account", { account_id: "dev-account" });
 
             return () => {
                 client.unsubscribe("market_data", params);
                 client.unsubscribe("trades", params);
-                client.unsubscribe("account", { account_id: "dev-account" });
             };
         }
     }, [symbol, client, connectionStatus]);
+
+    // Account subscription — dynamic, re-subscribes when wallet changes
+    useEffect(() => {
+        if (connectionStatus !== "connected") return;
+
+        // Unsubscribe previous account when wallet switches
+        if (prevAccountId.current && prevAccountId.current !== accountId) {
+            client.unsubscribe("account", { account_id: prevAccountId.current });
+        }
+
+        if (accountId) {
+            client.subscribe("account", { account_id: accountId });
+            prevAccountId.current = accountId;
+        }
+
+        return () => {
+            if (accountId) {
+                client.unsubscribe("account", { account_id: accountId });
+            }
+        };
+    }, [accountId, client, connectionStatus]);
 
     return (
         <div className="p-6 bg-black min-h-screen flex flex-col gap-6 text-white font-sans overflow-x-hidden">
@@ -51,7 +77,10 @@ export const MarketPage: React.FC = () => {
             <div className="flex flex-row gap-6 mt-4 items-start">
                 <Orderbook symbol={symbol} />
                 <TradeTape symbol={symbol} />
-                <OrderEntry symbol={symbol} />
+                <div className="flex flex-col gap-4">
+                    <OrderEntry symbol={symbol} />
+                    <AccountPanel />
+                </div>
             </div>
 
             {/* Orders & Positions panels */}
