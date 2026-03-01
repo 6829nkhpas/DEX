@@ -5,7 +5,8 @@
   "description": "DEX Web UI — API and WebSocket client layers",
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test 'src/**/__tests__/*.test.ts'"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
