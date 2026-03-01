@@ -3,6 +3,7 @@ import { useDexStore } from "../state/StoreProvider";
 import { Orderbook } from "../components/Orderbook/Orderbook";
 import { TradeTape } from "../components/TradeTape/TradeTape";
 import { TickerPanel } from "../components/Ticker/TickerPanel";
+import { OrderEntry } from "../components/OrderEntry/OrderEntry";
 
 export const MarketPage: React.FC = () => {
     const [symbol, setSymbol] = useState("BTC/USDT");
@@ -46,6 +47,7 @@ export const MarketPage: React.FC = () => {
             <div className="flex flex-row gap-6 mt-4 items-start">
                 <Orderbook symbol={symbol} />
                 <TradeTape symbol={symbol} />
+                <OrderEntry symbol={symbol} />
             </div>
         </div>
     );
