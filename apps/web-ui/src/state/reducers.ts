@@ -116,21 +116,21 @@ export function isDuplicate(event: BaseEvent<unknown>, meta: SeqMeta): boolean {
 }
 
 /**
- * Record that an event was applied. Returns a new SeqMeta.
+ * Record that an event was applied. Mutates the seenIds set in-place for
+ * performance (avoids O(n) Set copy per dispatch). Returns updates SeqMeta.
  * Evicts oldest entries when the set exceeds MAX_SEEN_IDS.
  */
 export function recordEvent(event: BaseEvent<unknown>, meta: SeqMeta): SeqMeta {
-    const newSeen = new Set(meta.seenIds);
-    newSeen.add(event.event_id);
+    meta.seenIds.add(event.event_id);
 
     // Evict oldest if over limit (Set iterates in insertion order)
-    if (newSeen.size > MAX_SEEN_IDS) {
-        const iter = newSeen.values();
-        const toRemove = newSeen.size - MAX_SEEN_IDS;
+    if (meta.seenIds.size > MAX_SEEN_IDS) {
+        const iter = meta.seenIds.values();
+        const toRemove = meta.seenIds.size - MAX_SEEN_IDS;
         for (let i = 0; i < toRemove; i++) {
             const oldest = iter.next().value;
             if (oldest !== undefined) {
-                newSeen.delete(oldest);
+                meta.seenIds.delete(oldest);
             }
         }
     }
@@ -139,7 +139,7 @@ export function recordEvent(event: BaseEvent<unknown>, meta: SeqMeta): SeqMeta {
         ? event.sequence
         : meta.lastSeq;
 
-    return { lastSeq: newSeq, seenIds: newSeen };
+    return { lastSeq: newSeq, seenIds: meta.seenIds };
 }
 
 // ---------------------------------------------------------------------------

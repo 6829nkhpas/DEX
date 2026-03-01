@@ -1,0 +1,42 @@
+{
+  "config": {
+    "rate": 100,
+    "duration": 30,
+    "symbols": [
+      "BTC/USDT"
+    ]
+  },
+  "total_events": 3000,
+  "actual_rate": 98.62,
+  "dispatch_latency_ms": {
+    "median": 0.2897,
+    "p95": 0.432,
+    "p99": 0.5352,
+    "max": 0.6981,
+    "min": 0.0063
+  },
+  "heap_samples_mb": [
+    14.16,
+    15.25,
+    10.3,
+    12.98,
+    13.36,
+    17.45,
+    12.1,
+    12.63
+  ],
+  "heap_growth_pct": -17.18,
+  "final_metrics": {
+    "events_ignored": 0,
+    "gaps_detected": 0,
+    "buffer_sizes": {}
+  },
+  "max_buffer_pct": 0,
+  "passed_kpis": {
+    "median_under_100ms": true,
+    "p95_under_300ms": true,
+    "heap_growth_under_10pct": true,
+    "buffer_under_1pct": true
+  },
+  "timestamp": "2026-03-01T19:04:14.231Z"
+}

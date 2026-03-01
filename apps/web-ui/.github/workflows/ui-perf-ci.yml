@@ -1,0 +1,73 @@
+name: UI Performance CI Guard
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/web-ui/src/**"
+      - "apps/web-ui/perf/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "apps/web-ui/src/**"
+      - "apps/web-ui/perf/**"
+
+jobs:
+  perf-guard:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web-ui
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: apps/web-ui
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        working-directory: apps/web-ui
+        run: npm test
+
+      - name: Run performance benchmark (100 msg/sec, 30s)
+        working-directory: apps/web-ui
+        run: npx tsx perf/bench-runner.ts --rate 100 --duration 30 --output perf/results.json
+
+      - name: Validate KPIs
+        working-directory: apps/web-ui
+        run: |
+          node -e "
+            const r = require('./perf/results.json');
+            const pass = r.passed_kpis;
+            console.log('KPI Results:');
+            console.log('  Median < 100ms:', pass.median_under_100ms);
+            console.log('  P95 < 300ms:', pass.p95_under_300ms);
+            console.log('  Heap < 10%:', pass.heap_growth_under_10pct);
+            console.log('  Buffer < 1%:', pass.buffer_under_1pct);
+            const allPass = Object.values(pass).every(Boolean);
+            if (!allPass) {
+              console.error('FAIL: KPI targets not met');
+              process.exit(1);
+            }
+            console.log('ALL KPIs PASS');
+          "
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: apps/web-ui/perf/results.json
+          retention-days: 30
