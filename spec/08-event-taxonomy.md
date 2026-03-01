@@ -322,9 +322,9 @@ Event {
   "payload": {
     "symbol": "BTC/USDT",
     "last_price": "50000.00",
-    "24h_volume": "1234.56",
-    "24h_high": "51000.00",
-    "24h_low": "49000.00",
+    "volume_24h": "1234.56",
+    "high_24h": "51000.00",
+    "low_24h": "49000.00",
     "mark_price": "50010.00"
   }
 }

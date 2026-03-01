@@ -1,0 +1,172 @@
+{
+  "contract_name": "CommitmentStore",
+  "abi_version": "1.0.0",
+  "source": "chain/contracts/src/commitment.rs",
+  "description": "State commitment store — periodic state roots, fraud proofs, disputes. Implements state validation layer.",
+  "constructor": {
+    "name": "new",
+    "inputs": [
+      { "name": "admin", "type": "String", "description": "Initial admin address" },
+      { "name": "fraud_window_seconds", "type": "i64", "description": "Duration of fraud proof window" }
+    ],
+    "outputs": { "type": "CommitmentStore" }
+  },
+  "methods": [
+    {
+      "name": "with_default_window",
+      "mutability": "constructor",
+      "access": "public",
+      "inputs": [
+        { "name": "admin", "type": "String" }
+      ],
+      "outputs": { "type": "CommitmentStore" },
+      "errors": [],
+      "description": "Create with default 2-hour fraud window"
+    },
+    {
+      "name": "submit_root",
+      "mutability": "mutable",
+      "access": "admin_or_operator",
+      "inputs": [
+        { "name": "caller", "type": "String" },
+        { "name": "root_hash", "type": "[u8; 32]" },
+        { "name": "block_number", "type": "u64" },
+        { "name": "current_time", "type": "i64" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, CommitmentError>" },
+      "errors": ["Unauthorized"],
+      "events": ["CommitmentSubmitted"]
+    },
+    {
+      "name": "get_latest_root",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "Result<StateCommitment, CommitmentError>" },
+      "errors": ["NoCommitment"]
+    },
+    {
+      "name": "history",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "StateCommitment[]" },
+      "errors": []
+    },
+    {
+      "name": "validate_proof_stub",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [
+        { "name": "data", "type": "&[u8]" },
+        { "name": "expected_hash", "type": "[u8; 32]" }
+      ],
+      "outputs": { "type": "Result<bool, CommitmentError>" },
+      "errors": ["InvalidProof"],
+      "description": "Stub for Merkle proof validation. Recomputes SHA-256 of data and compares."
+    },
+    {
+      "name": "raise_dispute",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [
+        { "name": "challenger", "type": "String" },
+        { "name": "reason", "type": "String" },
+        { "name": "current_time", "type": "i64" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, CommitmentError>" },
+      "errors": ["NoCommitment", "FraudWindowExpired", "DuplicateDispute"],
+      "events": ["DisputeRaised"]
+    },
+    {
+      "name": "resolve_dispute",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" },
+        { "name": "root_hash", "type": "[u8; 32]" },
+        { "name": "accept", "type": "bool" }
+      ],
+      "outputs": { "type": "Result<(), CommitmentError>" },
+      "errors": ["Unauthorized", "DisputeNotFound"]
+    },
+    {
+      "name": "admin_override",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "caller", "type": "String" },
+        { "name": "root_hash", "type": "[u8; 32]" },
+        { "name": "block_number", "type": "u64" },
+        { "name": "current_time", "type": "i64" }
+      ],
+      "outputs": { "type": "Result<ContractEvent, CommitmentError>" },
+      "errors": ["Unauthorized"],
+      "events": ["CommitmentSubmitted"]
+    },
+    {
+      "name": "disputes",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "Dispute[]" },
+      "errors": []
+    },
+    {
+      "name": "events",
+      "mutability": "view",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    },
+    {
+      "name": "drain_events",
+      "mutability": "mutable",
+      "access": "public",
+      "inputs": [],
+      "outputs": { "type": "ContractEvent[]" },
+      "errors": []
+    },
+    {
+      "name": "grant_operator",
+      "mutability": "mutable",
+      "access": "admin",
+      "inputs": [
+        { "name": "admin", "type": "String" },
+        { "name": "operator", "type": "String" }
+      ],
+      "outputs": { "type": "bool" },
+      "errors": []
+    }
+  ],
+  "types": {
+    "StateCommitment": {
+      "fields": {
+        "root_hash": "[u8; 32]",
+        "block_number": "u64",
+        "submitter": "String",
+        "submitted_at": "i64"
+      }
+    },
+    "DisputeStatus": {
+      "variants": ["Pending", "Accepted", "Rejected"]
+    },
+    "Dispute": {
+      "fields": {
+        "root_hash": "[u8; 32]",
+        "challenger": "String",
+        "reason": "String",
+        "raised_at": "i64",
+        "status": "DisputeStatus"
+      }
+    },
+    "CommitmentError": {
+      "variants": [
+        "InvalidProof", "WithinFraudWindow", "Unauthorized",
+        "NoCommitment", "DuplicateDispute", "FraudWindowExpired",
+        "DisputeNotFound"
+      ]
+    }
+  }
+}

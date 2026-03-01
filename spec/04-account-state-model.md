@@ -362,7 +362,7 @@ portfolio_value = Σ (balance[asset] × price[asset])
 
 ```
 pnl_24h = Σ realized_pnl (last 24h) 
-        + Σ (unrealized_pnl_now - unrealized_pnl_24h_ago)
+        + Σ (unrealized_pnl_now - unrealized_pnl_ago_24h)
 ```
 
 ### 9.3 Lifetime Statistics
