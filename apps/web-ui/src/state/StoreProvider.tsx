@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from "
 import { DexStateStore } from "./store";
 import { DexWebSocketClient } from "../ws/ws-client";
 import { StoreState } from "./types";
+import { getConfig } from "../infra/config";
 
 interface DexContextValue {
     store: DexStateStore;
@@ -15,12 +16,13 @@ const DexContext = createContext<DexContextValue | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Initialize singletons once
     const { store, client } = useMemo(() => {
+        const config = getConfig();
         const store = new DexStateStore();
 
-        // Use a mock token for development
+        // Token from environment config — no hardcoded secrets
         const client = new DexWebSocketClient({
-            url: "ws://localhost:8080/v1/ws",
-            getToken: async () => process.env.VITE_WS_TOKEN || "dev-token-123",
+            url: config.wsUrl,
+            getToken: async () => config.wsToken,
         });
 
         // Wire WS events -> Store dispatch
