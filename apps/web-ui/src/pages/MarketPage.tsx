@@ -4,6 +4,8 @@ import { Orderbook } from "../components/Orderbook/Orderbook";
 import { TradeTape } from "../components/TradeTape/TradeTape";
 import { TickerPanel } from "../components/Ticker/TickerPanel";
 import { OrderEntry } from "../components/OrderEntry/OrderEntry";
+import { OpenOrders } from "../components/OpenOrders/OpenOrders";
+import { Positions } from "../components/Positions/Positions";
 
 export const MarketPage: React.FC = () => {
     const [symbol, setSymbol] = useState("BTC/USDT");
@@ -15,10 +17,12 @@ export const MarketPage: React.FC = () => {
 
             client.subscribe("market_data", params);
             client.subscribe("trades", params);
+            client.subscribe("account", { account_id: "dev-account" });
 
             return () => {
                 client.unsubscribe("market_data", params);
                 client.unsubscribe("trades", params);
+                client.unsubscribe("account", { account_id: "dev-account" });
             };
         }
     }, [symbol, client, connectionStatus]);
@@ -48,6 +52,12 @@ export const MarketPage: React.FC = () => {
                 <Orderbook symbol={symbol} />
                 <TradeTape symbol={symbol} />
                 <OrderEntry symbol={symbol} />
+            </div>
+
+            {/* Orders & Positions panels */}
+            <div className="flex flex-col gap-6 mt-2">
+                <OpenOrders />
+                <Positions />
             </div>
         </div>
     );
