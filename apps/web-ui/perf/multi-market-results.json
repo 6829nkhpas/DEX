@@ -1,0 +1,144 @@
+{
+  "phase": 15,
+  "timestamp": "2026-03-01T19:37:26.888Z",
+  "matrix": "multi-market-stress",
+  "total_scenarios": 4,
+  "scenarios_passed": 4,
+  "max_sustained_safe_throughput": 1250,
+  "max_stable_symbol_count": 50,
+  "scaling_analysis": {
+    "memory_per_symbol_mb": [
+      {
+        "symbols": 1,
+        "heap_per_symbol_mb": 1.6205
+      },
+      {
+        "symbols": 10,
+        "heap_per_symbol_mb": 0.7657
+      },
+      {
+        "symbols": 25,
+        "heap_per_symbol_mb": -0.068
+      },
+      {
+        "symbols": 50,
+        "heap_per_symbol_mb": 0.1711
+      }
+    ],
+    "linear_scaling": "confirmed"
+  },
+  "results": [
+    {
+      "label": "1 sym @ 500/s",
+      "symbols": 1,
+      "rate_per_symbol": 500,
+      "total_rate": 500,
+      "duration_sec": 10,
+      "total_events": 5000,
+      "actual_rate": 15892.37,
+      "dispatch_latency_ms": {
+        "median": 0.0323,
+        "p95": 0.185,
+        "p99": 0.4435,
+        "max": 0.8696
+      },
+      "heap_start_mb": 8.2,
+      "heap_end_mb": 9.82,
+      "heap_growth_mb": 1.62,
+      "heap_growth_pct": 19.77,
+      "heap_per_symbol_mb": 1.6205,
+      "events_ignored": 0,
+      "gaps_detected": 0,
+      "max_buffer_size": 0,
+      "max_buffer_pct": 0,
+      "cpu_time_user_ms": 319,
+      "cpu_time_system_ms": 32,
+      "stable": true,
+      "notes": []
+    },
+    {
+      "label": "10 sym @ 100/s",
+      "symbols": 10,
+      "rate_per_symbol": 100,
+      "total_rate": 1000,
+      "duration_sec": 10,
+      "total_events": 10000,
+      "actual_rate": 55531.86,
+      "dispatch_latency_ms": {
+        "median": 0.0094,
+        "p95": 0.0423,
+        "p99": 0.0691,
+        "max": 0.8476
+      },
+      "heap_start_mb": 11.08,
+      "heap_end_mb": 18.73,
+      "heap_growth_mb": 7.66,
+      "heap_growth_pct": 69.13,
+      "heap_per_symbol_mb": 0.7657,
+      "events_ignored": 0,
+      "gaps_detected": 0,
+      "max_buffer_size": 0,
+      "max_buffer_pct": 0,
+      "cpu_time_user_ms": 178,
+      "cpu_time_system_ms": 27,
+      "stable": true,
+      "notes": []
+    },
+    {
+      "label": "25 sym @ 50/s",
+      "symbols": 25,
+      "rate_per_symbol": 50,
+      "total_rate": 1250,
+      "duration_sec": 10,
+      "total_events": 12500,
+      "actual_rate": 94201.23,
+      "dispatch_latency_ms": {
+        "median": 0.0073,
+        "p95": 0.0223,
+        "p99": 0.0296,
+        "max": 1.0146
+      },
+      "heap_start_mb": 22.04,
+      "heap_end_mb": 20.35,
+      "heap_growth_mb": -1.7,
+      "heap_growth_pct": -7.71,
+      "heap_per_symbol_mb": -0.068,
+      "events_ignored": 0,
+      "gaps_detected": 0,
+      "max_buffer_size": 0,
+      "max_buffer_pct": 0,
+      "cpu_time_user_ms": 165,
+      "cpu_time_system_ms": 10,
+      "stable": true,
+      "notes": []
+    },
+    {
+      "label": "50 sym @ 25/s",
+      "symbols": 50,
+      "rate_per_symbol": 25,
+      "total_rate": 1250,
+      "duration_sec": 10,
+      "total_events": 12500,
+      "actual_rate": 89728.3,
+      "dispatch_latency_ms": {
+        "median": 0.0065,
+        "p95": 0.0356,
+        "p99": 0.0565,
+        "max": 1.9931
+      },
+      "heap_start_mb": 23.81,
+      "heap_end_mb": 32.36,
+      "heap_growth_mb": 8.56,
+      "heap_growth_pct": 35.94,
+      "heap_per_symbol_mb": 0.1711,
+      "events_ignored": 0,
+      "gaps_detected": 0,
+      "max_buffer_size": 0,
+      "max_buffer_pct": 0,
+      "cpu_time_user_ms": 134,
+      "cpu_time_system_ms": 32,
+      "stable": true,
+      "notes": []
+    }
+  ]
+}
