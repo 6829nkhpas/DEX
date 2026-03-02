@@ -7,6 +7,7 @@ import type { BaseEvent } from "../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload, TradePayload, TickerDeltaPayload } from "./state/types";
 import { Side } from "../../../types/generated-types";
 import { MarketPage } from "./pages/MarketPage";
+import { RiskPage } from "./pages/RiskPage";
 
 function MockEventSimulation() {
     const { store } = useDexStore();
@@ -187,6 +188,9 @@ export function App() {
                     <Link href="/trade" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
                         Trade
                     </Link>
+                    <Link href="/risk" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                        Risk
+                    </Link>
                 </nav>
                 <div className="ml-auto">
                     <WalletButton />
@@ -198,6 +202,7 @@ export function App() {
                 <Switch>
                     <Route path="/" component={Home} />
                     <Route path="/trade" component={MarketPage} />
+                    <Route path="/risk" component={RiskPage} />
                     <Route component={NotFound} />
                 </Switch>
             </main>
