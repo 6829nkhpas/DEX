@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# CI Workflow: UI Smoke Tests
+# ---------------------------------------------------------------------------
+# Runs on every push to main and on PRs touching apps/web-ui/**
+#
+# Steps:
+#   1. Install dependencies
+#   2. TypeScript type-check (tsc --noEmit)
+#   3. Run full unit/integration test suite
+#   4. Run perf bench (50 msg/sec for 15s)
+#   5. Build production bundle
+# ---------------------------------------------------------------------------
+
+name: ui-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web-ui/**"
+  pull_request:
+    paths:
+      - "apps/web-ui/**"
+
+defaults:
+  run:
+    working-directory: apps/web-ui
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+
+      - name: Run unit & integration tests
+        run: npx tsx --test 'src/**/__tests__/*.test.ts'
+
+      - name: Perf bench — 50 msg/sec for 15s
+        run: npx tsx perf/bench-runner.ts --rate 50 --duration 15
+        timeout-minutes: 2
+
+      - name: Build production bundle
+        run: npx vite build
+
+      - name: Report bundle size
+        run: |
+          echo "### Bundle Size" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls -lh dist/assets/*.js | awk '{print $5, $9}' >> $GITHUB_STEP_SUMMARY

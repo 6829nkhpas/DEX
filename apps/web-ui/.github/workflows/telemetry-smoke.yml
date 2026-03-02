@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------------
+# CI Workflow: Telemetry Smoke Test
+# ---------------------------------------------------------------------------
+# Verifies that the telemetry pipeline works end-to-end:
+#   1. Starts the telemetry mock server
+#   2. Runs the E2E demo that emits events
+#   3. Verifies events were collected
+# ---------------------------------------------------------------------------
+
+name: telemetry-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web-ui/src/infra/telemetry.ts"
+      - "ops/telemetry-mock/**"
+  pull_request:
+    paths:
+      - "apps/web-ui/src/infra/telemetry.ts"
+      - "ops/telemetry-mock/**"
+
+jobs:
+  telemetry-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web-ui
+        run: npm ci
+
+      - name: Start telemetry mock server
+        working-directory: ops/telemetry-mock
+        run: |
+          npx --prefix ../../apps/web-ui tsx server.ts &
+          sleep 2
+          # Verify server is up
+          curl -sf http://localhost:9200/events > /dev/null
+
+      - name: Run telemetry E2E demo
+        working-directory: ops/telemetry-mock
+        run: npx --prefix ../../apps/web-ui tsx e2e-demo.ts
+
+      - name: Verify events collected
+        run: |
+          EVENTS=$(curl -sf http://localhost:9200/events | node -e "
+            let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{
+              const events = JSON.parse(d);
+              console.log('Events collected: ' + events.length);
+              if (events.length < 10) { process.exit(1); }
+            });
+          ")
+          echo "Telemetry E2E: PASS"
