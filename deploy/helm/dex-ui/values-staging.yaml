@@ -1,0 +1,38 @@
+# Staging overrides
+replicaCount: 1
+
+image:
+  repository: "${REGISTRY}/dex-web-ui"
+  tag: "staging-latest"
+  pullPolicy: Always
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  hosts:
+    - host: staging-dex.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: dex-ui-staging-tls
+      hosts:
+        - staging-dex.example.com
+
+config:
+  VITE_API_BASE_URL: /v1
+  VITE_WS_URL: ws://gateway-staging:8080/v1/ws
+  VITE_TELEMETRY_ENABLED: "true"
+  VITE_DEV_MODE: "false"
+  VITE_DEBUG_PANEL: "true"
+  VITE_METRICS_ENABLED: "true"
