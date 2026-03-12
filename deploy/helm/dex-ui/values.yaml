@@ -1,0 +1,100 @@
+# Default values for dex-ui
+replicaCount: 2
+
+image:
+  repository: "${REGISTRY}/dex-web-ui"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: registry-credentials
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+  metricsPort: 9091
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: dex.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: dex-ui-tls
+      hosts:
+        - dex.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Probes
+probes:
+  liveness:
+    path: /healthz
+    port: 9091
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /readyz
+    port: 9091
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Application config (injected as ConfigMap)
+config:
+  VITE_API_BASE_URL: /v1
+  VITE_WS_URL: ws://gateway:8080/v1/ws
+  VITE_TELEMETRY_ENDPOINT: /telemetry
+  VITE_TELEMETRY_SAMPLE_RATE: "0.01"
+  VITE_TELEMETRY_ENABLED: "true"
+  VITE_DEV_MODE: "false"
+  VITE_DEBUG_PANEL: "false"
+  VITE_METRICS_ENABLED: "true"
+
+# Secrets (referenced from k8s Secret)
+secrets:
+  secretName: dex-ui-secrets
+
+# Prometheus scraping
+prometheus:
+  enabled: true
+  port: 9091
+  path: /metrics
+
+# Alertmanager
+alertmanager:
+  endpoint: "${ALERTMANAGER_URL}"
