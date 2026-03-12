@@ -1,0 +1,12 @@
+apiVersion: v2
+name: dex-ui
+description: Helm chart for the DEX Web UI — React SPA with observability sidecar
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - dex
+  - web-ui
+  - trading
+maintainers:
+  - name: DEX Team
