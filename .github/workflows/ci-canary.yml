@@ -1,0 +1,262 @@
+# ---------------------------------------------------------------------------
+# CI Workflow: Canary Rollout & Rollback Automation
+# ---------------------------------------------------------------------------
+# Deploys a canary release with progressive traffic shifting.
+# Auto-rolls back on health/smoke check failures.
+#
+# Required Secrets:
+#   REGISTRY          — Container registry URL
+#   REGISTRY_USERNAME — Registry auth username
+#   REGISTRY_PASSWORD — Registry auth password/token
+#   KUBE_CONFIG       — Base64-encoded kubeconfig for prod cluster
+#   PROD_URL          — Production endpoint URL
+#   SLACK_WEBHOOK     — Slack webhook for notifications (optional)
+#
+# Trigger: manually via workflow_dispatch with image tag input
+# ---------------------------------------------------------------------------
+
+name: ci-canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy as canary (e.g., git SHA)"
+        required: true
+        type: string
+      canary_weight:
+        description: "Initial canary traffic weight (%)"
+        required: false
+        default: "10"
+        type: string
+      skip_approval:
+        description: "Skip manual approval for full rollout (for staging)"
+        type: boolean
+        default: false
+
+env:
+  IMAGE_NAME: dex-web-ui
+  HELM_RELEASE: dex-ui
+  NAMESPACE: production
+  CANARY_RELEASE: dex-ui-canary
+
+jobs:
+  # ── Step 1: Deploy Canary ─────────────────────────────────────
+  deploy-canary:
+    name: Deploy Canary (${{ inputs.canary_weight }}%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Deploy canary release
+        run: |
+          helm upgrade --install ${{ env.CANARY_RELEASE }} deploy/helm/dex-ui \
+            -f deploy/helm/dex-ui/values-prod.yaml \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository=${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ inputs.image_tag }} \
+            --set replicaCount=1 \
+            --set autoscaling.enabled=false \
+            --set nameOverride=dex-ui-canary \
+            --set fullnameOverride=dex-ui-canary \
+            --wait \
+            --timeout 5m
+
+      - name: Verify canary pods running
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=dex-ui-canary
+          kubectl rollout status deployment/dex-ui-canary -n ${{ env.NAMESPACE }} --timeout=3m
+
+  # ── Step 2: Canary Health Checks ──────────────────────────────
+  canary-checks:
+    name: Canary Health & Smoke Checks
+    needs: deploy-canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Wait for canary stabilization
+        run: sleep 30
+
+      - name: Health check — /healthz
+        run: |
+          CANARY_POD=$(kubectl get pods -n ${{ env.NAMESPACE }} \
+            -l app.kubernetes.io/name=dex-ui-canary \
+            -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n ${{ env.NAMESPACE }} "$CANARY_POD" -- \
+            node -e "
+              const http=require('http');
+              http.get('http://localhost:9091/healthz', res => {
+                let d=''; res.on('data',c=>d+=c);
+                res.on('end',()=>{console.log(d); process.exit(res.statusCode===200?0:1)});
+              }).on('error',e=>{console.error(e);process.exit(1)});
+            "
+
+      - name: Health check — /readyz
+        run: |
+          CANARY_POD=$(kubectl get pods -n ${{ env.NAMESPACE }} \
+            -l app.kubernetes.io/name=dex-ui-canary \
+            -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n ${{ env.NAMESPACE }} "$CANARY_POD" -- \
+            node -e "
+              const http=require('http');
+              http.get('http://localhost:9091/readyz', res => {
+                let d=''; res.on('data',c=>d+=c);
+                res.on('end',()=>{console.log(d); process.exit(res.statusCode===200?0:1)});
+              }).on('error',e=>{console.error(e);process.exit(1)});
+            "
+
+      - name: Metrics check — /metrics returns Prometheus format
+        run: |
+          CANARY_POD=$(kubectl get pods -n ${{ env.NAMESPACE }} \
+            -l app.kubernetes.io/name=dex-ui-canary \
+            -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n ${{ env.NAMESPACE }} "$CANARY_POD" -- \
+            node -e "
+              const http=require('http');
+              http.get('http://localhost:9091/metrics', res => {
+                let d=''; res.on('data',c=>d+=c);
+                res.on('end',()=>{
+                  if(!d.includes('dex_')){console.error('Missing dex_ metrics');process.exit(1);}
+                  console.log('Metrics OK');
+                });
+              }).on('error',e=>{console.error(e);process.exit(1)});
+            "
+
+      - name: Monitor canary for 2 minutes
+        run: |
+          for i in $(seq 1 4); do
+            echo "--- Check $i/4 (30s interval) ---"
+            kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=dex-ui-canary
+            RESTARTS=$(kubectl get pods -n ${{ env.NAMESPACE }} \
+              -l app.kubernetes.io/name=dex-ui-canary \
+              -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}')
+            echo "Restart count: $RESTARTS"
+            if [ "$RESTARTS" -gt "0" ]; then
+              echo "CANARY UNSTABLE — pod restarted"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "Canary stable for 2 minutes"
+
+  # ── Step 3: Manual Approval ───────────────────────────────────
+  approve-rollout:
+    name: Approve Full Rollout
+    needs: canary-checks
+    if: ${{ !inputs.skip_approval }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production-approval
+    steps:
+      - name: Approval gate
+        run: echo "Full rollout approved by operator"
+
+  # ── Step 4: Full Rollout ──────────────────────────────────────
+  full-rollout:
+    name: Full Production Rollout
+    needs: [canary-checks, approve-rollout]
+    if: always() && needs.canary-checks.result == 'success' && (needs.approve-rollout.result == 'success' || inputs.skip_approval)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Update main deployment
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE }} deploy/helm/dex-ui \
+            -f deploy/helm/dex-ui/values-prod.yaml \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository=${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ inputs.image_tag }} \
+            --wait \
+            --timeout 5m
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/${{ env.HELM_RELEASE }} \
+            -n ${{ env.NAMESPACE }} --timeout=5m
+
+      - name: Remove canary
+        run: |
+          helm uninstall ${{ env.CANARY_RELEASE }} \
+            --namespace ${{ env.NAMESPACE }} || true
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Full rollout of ${{ inputs.image_tag }} complete"
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\"✅ DEX UI deployed: ${{ inputs.image_tag }}\"}"
+          fi
+
+  # ── Rollback on Failure ───────────────────────────────────────
+  rollback:
+    name: Auto-Rollback Canary
+    needs: canary-checks
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Rollback canary
+        run: |
+          echo "⚠️ Canary checks failed — rolling back"
+          helm uninstall ${{ env.CANARY_RELEASE }} \
+            --namespace ${{ env.NAMESPACE }} || true
+
+      - name: Verify stable deployment unchanged
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=dex-ui
+          kubectl rollout status deployment/${{ env.HELM_RELEASE }} \
+            -n ${{ env.NAMESPACE }} --timeout=2m
+
+      - name: Notify failure
+        run: |
+          echo "❌ Canary for ${{ inputs.image_tag }} failed and was rolled back"
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            curl -s -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\"❌ DEX UI canary FAILED and rolled back: ${{ inputs.image_tag }}\"}"
+          fi

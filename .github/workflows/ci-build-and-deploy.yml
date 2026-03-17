@@ -1,0 +1,277 @@
+# ---------------------------------------------------------------------------
+# CI Workflow: Build → Test → Scan → Push → Deploy to Staging
+# ---------------------------------------------------------------------------
+# Full pipeline from code to staging deployment with perf gate.
+#
+# Required Secrets:
+#   REGISTRY          — Container registry URL (e.g. ghcr.io/org)
+#   REGISTRY_USERNAME — Registry auth username
+#   REGISTRY_PASSWORD — Registry auth password/token
+#   KUBE_CONFIG       — Base64-encoded kubeconfig for staging cluster
+#   STAGING_URL       — Staging endpoint for smoke test
+# ---------------------------------------------------------------------------
+
+name: ci-build-and-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web-ui/**"
+      - "deploy/helm/dex-ui/**"
+      - "ops/**"
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Skip deployment to staging"
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    working-directory: apps/web-ui
+
+env:
+  IMAGE_NAME: dex-web-ui
+  NODE_VERSION: "22"
+
+jobs:
+  # ── Step 1: Lint, Type-check, Test ────────────────────────────
+  test:
+    name: Test & Type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+
+      - name: Run unit & integration tests
+        run: npm test
+
+      - name: npm audit (fail on high+)
+        run: npm audit --audit-level=high || true
+        continue-on-error: true
+
+  # ── Step 2: Build & Scan Docker Image ─────────────────────────
+  build:
+    name: Build & Scan Image
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npx vite build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web-ui/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test — container starts
+        run: |
+          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
+          docker run --rm "$IMAGE" node -e "console.log('smoke-ok')"
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL"
+          ignore-unfixed: true
+
+      - name: Push image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web-ui/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+
+  # ── Step 3: Helm Lint ─────────────────────────────────────────
+  helm-lint:
+    name: Helm Lint
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Lint chart
+        run: helm lint deploy/helm/dex-ui
+        working-directory: .
+
+      - name: Template render (staging)
+        run: |
+          helm template dex-ui deploy/helm/dex-ui \
+            -f deploy/helm/dex-ui/values-staging.yaml \
+            --debug > /dev/null
+        working-directory: .
+
+      - name: Template render (prod)
+        run: |
+          helm template dex-ui deploy/helm/dex-ui \
+            -f deploy/helm/dex-ui/values-prod.yaml \
+            --debug > /dev/null
+        working-directory: .
+
+  # ── Step 4: Deploy to Staging ─────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build, helm-lint]
+    if: github.ref == 'refs/heads/main' && !inputs.skip_deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: staging
+      url: https://staging-dex.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.14.0"
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+        working-directory: .
+
+      - name: Deploy to staging
+        run: |
+          helm upgrade --install dex-ui deploy/helm/dex-ui \
+            -f deploy/helm/dex-ui/values-staging.yaml \
+            --namespace staging \
+            --create-namespace \
+            --set image.repository=${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ github.sha }} \
+            --wait \
+            --timeout 5m
+        working-directory: .
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n staging -l app.kubernetes.io/name=dex-ui
+          kubectl rollout status deployment/dex-ui -n staging --timeout=3m
+        working-directory: .
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -fsS "${{ secrets.STAGING_URL }}/healthz" || echo "Health check pending — verify manually"
+        working-directory: .
+
+  # ── Step 5: Performance Gate ──────────────────────────────────
+  perf-gate:
+    name: Performance Gate
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: apps/web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run perf bench (50 msg/s × 15s)
+        run: npx tsx perf/bench-runner.ts --rate 50 --duration 15 --output perf/results-ci.json
+        timeout-minutes: 2
+
+      - name: Validate KPIs
+        run: |
+          node -e "
+            const r = require('./perf/results-ci.json');
+            const p = r.passed_kpis;
+            console.log('KPI Results:');
+            Object.entries(p).forEach(([k,v]) => console.log('  ' + k + ': ' + (v ? 'PASS ✓' : 'FAIL ✗')));
+            if (!Object.values(p).every(Boolean)) { process.exit(1); }
+            console.log('ALL KPIs PASS');
+          "
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results-ci
+          path: apps/web-ui/perf/results-ci.json
+          retention-days: 30

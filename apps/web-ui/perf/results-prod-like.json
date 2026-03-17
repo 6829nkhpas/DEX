@@ -1,0 +1,50 @@
+{
+  "config": {
+    "rate": 100,
+    "duration": 60,
+    "symbols": [
+      "BTC/USDT",
+      "ETH/USDT",
+      "SOL/USDT"
+    ]
+  },
+  "total_events": 6000,
+  "actual_rate": 98.9,
+  "dispatch_latency_ms": {
+    "median": 0.1348,
+    "p95": 0.2419,
+    "p99": 0.4449,
+    "max": 0.6928,
+    "min": 0.006
+  },
+  "heap_samples_mb": [
+    9.04,
+    13.68,
+    9.67,
+    10.38,
+    20.33,
+    18.7,
+    10.49,
+    16.98,
+    16.16,
+    20.85,
+    13.88,
+    11.59,
+    31.04,
+    21.49
+  ],
+  "heap_growth_pct": 57.09,
+  "final_metrics": {
+    "events_ignored": 0,
+    "gaps_detected": 0,
+    "buffer_sizes": {}
+  },
+  "max_buffer_pct": 0,
+  "passed_kpis": {
+    "median_under_100ms": true,
+    "p95_under_300ms": true,
+    "heap_growth_under_10pct": false,
+    "buffer_under_1pct": true
+  },
+  "timestamp": "2026-03-17T16:40:31.226Z"
+}

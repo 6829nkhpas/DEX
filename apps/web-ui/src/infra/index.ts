@@ -18,3 +18,6 @@ export type { TokenPair, TokenRefreshConfig } from "./token-manager";
 
 export { loadConfig, getConfig, resetConfig } from "./config";
 export type { AppConfig } from "./config";
+
+export { MetricsCollector } from "./metrics";
+export type { StoreMetricsSource, CollectedMetrics, MetricsCollectorConfig } from "./metrics";

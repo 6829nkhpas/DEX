@@ -1,0 +1,121 @@
+# ---------------------------------------------------------------------------
+# Prometheus Alerting Rules — DEX Web UI
+# ---------------------------------------------------------------------------
+# Deploy alongside Prometheus. Import via PrometheusRule CRD or rules_files.
+# Metrics are scraped from /metrics on port 9091 of dex-ui pods.
+# ---------------------------------------------------------------------------
+
+groups:
+  - name: dex-ui-alerts
+    rules:
+      # ── Gap Rate ────────────────────────────────────────────────
+      - alert: WS_GAP_RATE_HIGH
+        expr: rate(dex_gaps_detected_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          team: frontend-platform
+        annotations:
+          summary: "High WebSocket sequence gap rate"
+          description: >-
+            Gap detection rate is {{ $value | printf "%.3f" }} gaps/sec over
+            the last 5 minutes. This indicates missed events requiring
+            snapshot recovery. Check WS gateway health and network stability.
+          runbook_url: "https://github.com/org/dex/blob/main/ops/runbooks/data-discrepancy.md"
+
+      # ── Buffer Usage ────────────────────────────────────────────
+      - alert: BUFFER_USAGE_HIGH
+        expr: dex_buffer_size_total > 8000
+        for: 3m
+        labels:
+          severity: warning
+          team: frontend-platform
+        annotations:
+          summary: "Delta buffer usage above 80%"
+          description: >-
+            Buffer size is {{ $value }} (max 10,000). Events may be evicted
+            causing stale state. Investigate event throughput or subscription
+            fanout.
+          runbook_url: "https://github.com/org/dex/blob/main/ops/runbooks/buffer-overflow.md"
+
+      # ── Heap Growth ─────────────────────────────────────────────
+      - alert: HEAP_GROWTH
+        expr: >
+          (
+            process_heap_bytes
+            -
+            process_heap_bytes offset 10m
+          ) / process_heap_bytes offset 10m > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: frontend-platform
+        annotations:
+          summary: "Heap memory grew >20% over 10 minutes"
+          description: >-
+            Heap increased by {{ $value | printf "%.1f" }}% in the last 10m.
+            Possible memory leak. Check for unbounded caches, growing dedup
+            sets, or subscription leaks.
+          runbook_url: "https://github.com/org/dex/blob/main/ops/runbooks/buffer-overflow.md"
+
+      # ── P95 Latency ─────────────────────────────────────────────
+      - alert: P95_LATENCY_HIGH
+        expr: >
+          histogram_quantile(0.95,
+            rate(dex_event_to_store_latency_seconds_bucket[5m])
+          ) > 0.3
+        for: 3m
+        labels:
+          severity: warning
+          team: frontend-platform
+        annotations:
+          summary: "P95 event-to-store latency exceeds 300ms"
+          description: >-
+            P95 dispatch latency is {{ $value | printf "%.3f" }}s. Target is
+            <300ms. This degrades UI responsiveness. Check CPU pressure,
+            subscription count, and garbage collection pauses.
+
+      # ── Circuit Breaker Open ────────────────────────────────────
+      - alert: CIRCUIT_BREAKER_OPEN
+        expr: dex_circuit_breaker_state == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: frontend-platform
+        annotations:
+          summary: "Circuit breaker is OPEN"
+          description: >-
+            The API circuit breaker has tripped — all outgoing requests are
+            being rejected. Users cannot submit orders. Investigate backend
+            availability immediately.
+          runbook_url: "https://github.com/org/dex/blob/main/ops/runbooks/reconnect-storm.md"
+
+      # ── Connected Clients Drop ──────────────────────────────────
+      - alert: CONNECTED_CLIENTS_DROP
+        expr: >
+          dex_connected_clients < 1
+          and
+          dex_connected_clients offset 5m > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: frontend-platform
+        annotations:
+          summary: "All clients disconnected"
+          description: >-
+            Connected client count dropped to zero after previously being
+            active. Possible network partition or gateway failure.
+
+      # ── Events Ignored Spike ────────────────────────────────────
+      - alert: EVENTS_IGNORED_SPIKE
+        expr: rate(dex_events_ignored_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: info
+          team: frontend-platform
+        annotations:
+          summary: "High duplicate event ignore rate"
+          description: >-
+            Ignoring {{ $value | printf "%.1f" }} duplicate events/sec.
+            This is normally benign but high rates may indicate server-side
+            duplicate publishing.
