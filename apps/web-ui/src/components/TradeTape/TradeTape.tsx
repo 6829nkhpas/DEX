@@ -17,27 +17,27 @@ export const TradeTape: React.FC<TradeTapeProps> = React.memo(({ symbol }) => {
     }
 
     return (
-        <div className="flex flex-col w-64 bg-gray-900 border border-gray-800 rounded h-[500px]">
-            <div className="flex justify-between px-2 py-1 text-xs text-gray-500 border-b border-gray-800">
+        <div className="flex flex-col w-72 glass-panel rounded-xl h-[500px] shadow-2xl overflow-hidden relative border-t border-indigo-500/20">
+            <div className="flex justify-between px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 border-b border-indigo-500/10 bg-slate-900/40 uppercase">
                 <span>Price</span>
                 <span>Size</span>
                 <span>Time</span>
             </div>
 
-            <div className="flex flex-col overflow-y-auto overflow-x-hidden">
+            <div className="flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
                 {trades.map((trade) => {
                     const isBuy = trade.side === Side.BUY;
-                    const colorClass = isBuy ? "text-green-500" : "text-red-500";
+                    const colorClass = isBuy ? "text-[#00E676] text-glow-buy" : "text-[#FF1744] text-glow-sell";
                     // format time as HH:mm:ss
                     // timestamp is nanoseconds string, convert to ms
                     const date = new Date(Number(BigInt(trade.timestamp) / 1_000_000n));
                     const timeStr = date.toLocaleTimeString([], { hour12: false });
 
                     return (
-                        <div key={trade.event_id} className="flex justify-between py-1 px-2 text-sm hover:bg-gray-800 font-mono">
+                        <div key={trade.event_id} className="flex justify-between py-1.5 px-4 text-sm hover:bg-indigo-500/10 cursor-default font-mono transition-colors animate-fade-in">
                             <span className={colorClass}>{trade.price}</span>
-                            <span className="text-gray-300">{trade.quantity}</span>
-                            <span className="text-gray-500 text-xs self-center">{timeStr}</span>
+                            <span className="text-slate-200">{trade.quantity}</span>
+                            <span className="text-slate-500 text-xs self-center">{timeStr}</span>
                         </div>
                     );
                 })}
