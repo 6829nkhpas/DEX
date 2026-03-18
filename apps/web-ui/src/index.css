@@ -1,8 +1,123 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
 @layer base {
+  :root {
+    --color-bg-base: #030509;
+    --color-bg-surface: #0a0e17;
+    --color-bg-elevated: #111827;
+    --color-accent-primary: #6366f1;
+    --color-accent-glow: rgba(99, 102, 241, 0.4);
+    
+    --color-buy: #00E676;
+    --color-buy-bg: rgba(0, 230, 118, 0.1);
+    --color-sell: #FF1744;
+    --color-sell-bg: rgba(255, 23, 68, 0.1);
+  }
+
   body {
-    @apply bg-[#0a0f16] text-[#e0e6ed] antialiased min-h-screen overflow-x-hidden pt-12;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    background-color: var(--color-bg-base);
+    color: #e2e8f0;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+    margin: 0;
+    
+    /* Subtle radial glow in the background */
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1f2937;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(10, 14, 23, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  }
+  
+  .glass-panel-heavy {
+    background: rgba(10, 14, 23, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .text-glow-buy {
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+  }
+
+  .text-glow-sell {
+    text-shadow: 0 0 10px rgba(255, 23, 68, 0.4);
+  }
+
+  .text-gradient-primary {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(to right, #818cf8, #c084fc);
+  }
+  
+  .border-gradient {
+    position: relative;
+    background: linear-gradient(to right, #1e293b, #1e293b) padding-box,
+                linear-gradient(to right, #6366f1, #ec4899) border-box;
+    border: 1px solid transparent;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
   }
 }
