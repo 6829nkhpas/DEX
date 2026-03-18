@@ -288,238 +288,179 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
     const isSubmitDisabled = submitting || rateLimited;
 
     return (
-        <div
-            id="order-entry"
-            style={{
-                background: "#111827",
-                border: "1px solid #374151",
-                borderRadius: 8,
-                padding: 16,
-                minWidth: 300,
-                fontFamily: "Inter, system-ui, sans-serif",
-                color: "#e5e7eb",
-            }}
-        >
-            <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
-                New Order — {symbol}
+        <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[320px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+            {/* Background subtle glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-baseline gap-2">
+                New Order
+                <span className="text-slate-500 font-sans font-normal text-sm">— {symbol}</span>
             </h3>
 
-            <form onSubmit={handleSubmit} id="order-entry-form">
-                {/* Side */}
-                <FieldRow label="Side" error={errors.side}>
-                    <select
-                        id="order-side"
-                        value={side}
-                        onChange={(e) => setSide(e.target.value)}
-                        style={inputStyle}
-                    >
-                        <option value="BUY">BUY</option>
-                        <option value="SELL">SELL</option>
-                    </select>
-                </FieldRow>
+            <form onSubmit={handleSubmit} id="order-entry-form" className="flex flex-col gap-3 relative z-10">
+                <div className="grid grid-cols-2 gap-3">
+                    <FieldRow label="Side" error={errors.side}>
+                        <select
+                            id="order-side"
+                            value={side}
+                            onChange={(e) => setSide(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-semibold"
+                        >
+                            <option value="BUY">BUY</option>
+                            <option value="SELL">SELL</option>
+                        </select>
+                    </FieldRow>
 
-                {/* Type */}
-                <FieldRow label="Type" error={errors.order_type}>
-                    <select
-                        id="order-type"
-                        value={orderType}
-                        onChange={(e) => setOrderType(e.target.value)}
-                        style={inputStyle}
-                    >
-                        <option value="LIMIT">LIMIT</option>
-                        <option value="MARKET">MARKET</option>
-                    </select>
-                </FieldRow>
+                    <FieldRow label="Type" error={errors.order_type}>
+                        <select
+                            id="order-type"
+                            value={orderType}
+                            onChange={(e) => setOrderType(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-semibold"
+                        >
+                            <option value="LIMIT">LIMIT</option>
+                            <option value="MARKET">MARKET</option>
+                        </select>
+                    </FieldRow>
+                </div>
 
-                {/* Price (hidden for MARKET) */}
                 {orderType === "LIMIT" && (
                     <FieldRow label="Price" error={errors.price}>
+                        <div className="relative">
+                            <input
+                                id="order-price"
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                className="w-full pl-3 pr-12 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-slate-600 shadow-inner"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">USDT</div>
+                        </div>
+                    </FieldRow>
+                )}
+
+                <FieldRow label="Quantity" error={errors.quantity}>
+                    <div className="relative">
                         <input
-                            id="order-price"
+                            id="order-quantity"
                             type="text"
                             inputMode="decimal"
-                            placeholder="e.g. 50000.00"
-                            value={price}
-                            onChange={(e) => setPrice(e.target.value)}
-                            style={inputStyle}
+                            placeholder="0.00"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                            className="w-full pl-3 pr-12 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-slate-600 shadow-inner"
                         />
-                    </FieldRow>
-                )}
-
-                {/* Quantity */}
-                <FieldRow label="Quantity" error={errors.quantity}>
-                    <input
-                        id="order-quantity"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="e.g. 1.0"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        style={inputStyle}
-                    />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">{symbol.split('/')[0]}</div>
+                    </div>
                 </FieldRow>
 
-                {/* TIF */}
-                <FieldRow label="Time in Force" error={errors.time_in_force}>
-                    <select
-                        id="order-tif"
-                        value={tif}
-                        onChange={(e) => setTif(e.target.value)}
-                        style={inputStyle}
-                    >
-                        <option value="GTC">GTC</option>
-                        <option value="IOC">IOC</option>
-                        <option value="FOK">FOK</option>
-                        <option value="GTD">GTD</option>
-                    </select>
-                </FieldRow>
-
-                {/* GTD date */}
-                {tif === "GTD" && (
-                    <FieldRow label="Expiry" error={errors.gtd_date}>
-                        <input
-                            id="order-gtd-date"
-                            type="datetime-local"
-                            value={gtdDate}
-                            onChange={(e) => setGtdDate(e.target.value)}
-                            style={inputStyle}
-                        />
+                <div className="grid grid-cols-2 gap-3">
+                    <FieldRow label="Time in Force" error={errors.time_in_force}>
+                        <select
+                            id="order-tif"
+                            value={tif}
+                            onChange={(e) => setTif(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer"
+                        >
+                            <option value="GTC">GTC</option>
+                            <option value="IOC">IOC</option>
+                            <option value="FOK">FOK</option>
+                            <option value="GTD">GTD</option>
+                        </select>
                     </FieldRow>
-                )}
+
+                    {tif === "GTD" && (
+                        <FieldRow label="Expiry" error={errors.gtd_date}>
+                            <input
+                                id="order-gtd-date"
+                                type="datetime-local"
+                                value={gtdDate}
+                                onChange={(e) => setGtdDate(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                            />
+                        </FieldRow>
+                    )}
+                </div>
 
                 {/* Buttons */}
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <div className="flex gap-3 mt-4">
                     <button
                         id="order-submit"
                         type="submit"
                         disabled={isSubmitDisabled}
-                        style={{
-                            ...btnStyle,
-                            background: side === "BUY" ? "#10b981" : "#ef4444",
-                            opacity: isSubmitDisabled ? 0.5 : 1,
-                            cursor: isSubmitDisabled ? "not-allowed" : "pointer",
-                        }}
+                        className={`
+                            flex-1 py-3 px-4 rounded-xl font-bold tracking-wide text-sm text-white shadow-lg transition-all
+                            ${isSubmitDisabled ? "opacity-50 cursor-not-allowed filter grayscale" : "hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"}
+                            ${side === "BUY" ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-emerald-500/20" : "bg-gradient-to-r from-rose-500 to-rose-400 shadow-rose-500/20"}
+                        `}
                     >
-                        {submitting ? "⏳ Submitting…" : rateLimited ? "⏳ Rate limited" : `Submit ${side}`}
+                        {submitting ? "Submitting…" : rateLimited ? "Rate limited" : `CONFIRM ${side}`}
                     </button>
                     <button
                         id="order-reset"
                         type="button"
                         onClick={handleReset}
-                        style={{ ...btnStyle, background: "#374151" }}
+                        className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold text-sm transition-colors border border-slate-700 hover:text-white"
                     >
                         Reset
                     </button>
                 </div>
             </form>
 
-            {/* Success toast */}
-            {submitSuccess && (
-                <div
-                    id="order-success"
-                    style={{
-                        marginTop: 8,
-                        padding: 8,
-                        background: "#065f46",
-                        borderRadius: 4,
-                        fontSize: 13,
-                    }}
-                >
-                    ✅ {submitSuccess}
-                </div>
-            )}
+            <div className="relative z-10 flex flex-col gap-2 empty:hidden">
+                {/* Success toast */}
+                {submitSuccess && (
+                    <div id="order-success" className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm animate-fade-in flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        {submitSuccess}
+                    </div>
+                )}
 
-            {/* Error toast */}
-            {submitError && (
-                <div
-                    id="order-error"
-                    style={{
-                        marginTop: 8,
-                        padding: 8,
-                        background: "#7f1d1d",
-                        borderRadius: 4,
-                        fontSize: 13,
-                    }}
-                >
-                    ❌ {submitError}
-                </div>
-            )}
+                {/* Error toast */}
+                {submitError && (
+                    <div id="order-error" className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm animate-fade-in flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        {submitError}
+                    </div>
+                )}
+            </div>
 
             {/* Local submitted-orders status panel */}
             {submittedOrders.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                        Recent Submissions
+                <div className="mt-2 relative z-10 animate-fade-in">
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Recent Activity
                     </h4>
-                    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ borderBottom: "1px solid #374151" }}>
-                                <th style={thStyle}>Order ID</th>
-                                <th style={thStyle}>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {submittedOrders.slice(0, 10).map((so) => (
-                                <tr key={so.order_id}>
-                                    <td style={tdStyle}>
-                                        {so.order_id.slice(0, 8)}…
-                                    </td>
-                                    <td style={tdStyle}>
-                                        <span
-                                            style={{
-                                                color:
-                                                    so.status === "SYNCED"
-                                                        ? "#10b981"
-                                                        : "#fbbf24",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {so.status}
-                                        </span>
-                                    </td>
+                    <div className="bg-slate-900/50 rounded-lg border border-indigo-500/10 overflow-hidden">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                            <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase">
+                                <tr>
+                                    <th className="px-4 py-2 font-medium">Order ID</th>
+                                    <th className="px-4 py-2 font-medium">Status</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-indigo-500/5">
+                                {submittedOrders.slice(0, 5).map((so) => (
+                                    <tr key={so.order_id} className="hover:bg-slate-800/30 transition-colors">
+                                        <td className="px-4 py-2 font-mono text-slate-300">
+                                            {so.order_id.slice(0, 8)}…
+                                        </td>
+                                        <td className="px-4 py-2 font-semibold text-xs tracking-wide">
+                                            <span className={so.status === "SYNCED" ? "text-emerald-400" : "text-amber-400"}>
+                                                {so.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>
     );
-};
-
-// ---------------------------------------------------------------------------
-// Inline styles
-// ---------------------------------------------------------------------------
-
-const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "6px 8px",
-    background: "#1f2937",
-    border: "1px solid #4b5563",
-    borderRadius: 4,
-    color: "#e5e7eb",
-    fontSize: 13,
-    boxSizing: "border-box",
-};
-
-const btnStyle: React.CSSProperties = {
-    flex: 1,
-    padding: "8px 0",
-    border: "none",
-    borderRadius: 4,
-    color: "#fff",
-    fontWeight: 600,
-    fontSize: 13,
-};
-
-const thStyle: React.CSSProperties = {
-    textAlign: "left",
-    padding: "4px 6px",
-    color: "#9ca3af",
-};
-
-const tdStyle: React.CSSProperties = {
-    padding: "4px 6px",
 };
 
 // ---------------------------------------------------------------------------
@@ -531,25 +472,13 @@ const FieldRow: React.FC<{
     error?: string;
     children: React.ReactNode;
 }> = ({ label, error, children }) => (
-    <div style={{ marginBottom: 8 }}>
-        <label
-            style={{
-                display: "block",
-                fontSize: 12,
-                color: "#9ca3af",
-                marginBottom: 2,
-            }}
-        >
+    <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-slate-400 tracking-wide ml-1">
             {label}
         </label>
         {children}
         {error && (
-            <div
-                className="field-error"
-                style={{ color: "#f87171", fontSize: 11, marginTop: 2 }}
-            >
-                {error}
-            </div>
+            <span className="text-xs text-rose-400 ml-1 animate-fade-in">{error}</span>
         )}
     </div>
 );
