@@ -13,9 +13,13 @@ const DepthBar = React.memo(({ total, maxTotal, color }: { total: string, maxTot
         return new Decimal(total).div(maxTotal).mul(100).toNumber();
     }, [total, maxTotal]);
 
+    const gradient = color === "bg-[#00E676]"
+        ? "bg-gradient-to-l from-[#00E676]/20 to-transparent"
+        : "bg-gradient-to-l from-[#FF1744]/20 to-transparent";
+
     return (
         <div
-            className={`absolute top-0 right-0 h-full opacity-10 ${color}`}
+            className={`absolute top-0 right-0 h-full ${gradient} pointer-events-none transition-all duration-300 ease-in-out`}
             style={{ width: `${width}%` }}
         />
     );
@@ -36,15 +40,15 @@ const OrderbookRow = React.memo(({
     maxTotal: Decimal,
     type: "bid" | "ask"
 }) => {
-    const colorClass = type === "bid" ? "text-green-500" : "text-red-500";
-    const bgClass = type === "bid" ? "bg-green-500" : "bg-red-500";
+    const colorClass = type === "bid" ? "text-[#00E676] text-glow-buy" : "text-[#FF1744] text-glow-sell";
+    const bgClass = type === "bid" ? "bg-[#00E676]" : "bg-[#FF1744]";
 
     return (
-        <div className="relative flex justify-between text-sm py-0.5 px-2 hover:bg-gray-800 cursor-pointer font-mono">
+        <div className="relative flex justify-between text-sm py-1 px-4 hover:bg-slate-800/50 cursor-pointer font-mono transition-colors group">
             <DepthBar total={total} maxTotal={maxTotal} color={bgClass} />
-            <span className={`z-10 ${colorClass}`}>{price}</span>
-            <span className="z-10 text-gray-300">{qty}</span>
-            <span className="z-10 text-gray-500">{total}</span>
+            <span className={`z-10 font-medium ${colorClass} group-hover:brightness-125 transition-all`}>{price}</span>
+            <span className="z-10 text-slate-200">{qty}</span>
+            <span className="z-10 text-slate-500">{total}</span>
         </div>
     );
 });
@@ -93,20 +97,20 @@ export const Orderbook: React.FC<OrderbookProps> = React.memo(({ symbol }) => {
     }, [orderbook]); // recompute only when orderbook object changes (assuming immutable store)
 
     if (!orderbook || (bidsWithTotal.length === 0 && asksWithTotal.length === 0)) {
-        return <div className="p-4 text-gray-500">Waiting for orderbook snapshot...</div>;
+        return <div className="p-4 text-slate-500 glass-panel rounded-xl flex items-center justify-center w-72 h-[500px]">Waiting for orderbook snapshot...</div>;
     }
 
     return (
-        <div className="flex flex-col w-64 bg-gray-900 border border-gray-800 rounded">
-            <div className="flex justify-between px-2 py-1 text-xs text-gray-500 border-b border-gray-800">
+        <div className="flex flex-col w-72 glass-panel rounded-xl shadow-2xl overflow-hidden relative border-t border-indigo-500/20">
+            <div className="flex justify-between px-4 py-2 text-xs font-semibold tracking-wider text-slate-400 border-b border-indigo-500/10 bg-slate-900/40 uppercase">
                 <span>Price</span>
                 <span>Size</span>
                 <span>Total</span>
             </div>
 
-            <div className="flex flex-col overflow-hidden">
+            <div className="flex flex-col overflow-hidden py-1">
                 {/* Asks (Red) */}
-                <div className="flex flex-col border-b border-gray-800 pb-1">
+                <div className="flex flex-col flex-1 justify-end pb-1 border-b border-indigo-500/10">
                     {asksWithTotal.map((item) => (
                         <OrderbookRow
                             key={item.price}
@@ -120,12 +124,17 @@ export const Orderbook: React.FC<OrderbookProps> = React.memo(({ symbol }) => {
                 </div>
 
                 {/* Spread spacing */}
-                <div className="py-2 text-center text-sm font-mono bg-gray-950 border-b border-gray-800">
-                    <span className="text-gray-400">Spread</span>
+                <div className="py-2 text-center text-sm font-mono bg-slate-900/40 flex items-center justify-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]">
+                    <span className="text-slate-400 font-semibold tracking-widest text-xs">SPREAD</span>
+                    <span className="text-slate-300">
+                        {asksWithTotal.length > 0 && bidsWithTotal.length > 0
+                            ? new Decimal(asksWithTotal[asksWithTotal.length - 1].price).minus(bidsWithTotal[0].price).abs().toString()
+                            : "-"}
+                    </span>
                 </div>
 
                 {/* Bids (Green) */}
-                <div className="flex flex-col pt-1">
+                <div className="flex flex-col pt-1 flex-1 border-t border-indigo-500/10">
                     {bidsWithTotal.map((item) => (
                         <OrderbookRow
                             key={item.price}
