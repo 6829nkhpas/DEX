@@ -131,16 +131,21 @@ function MockEventSimulation() {
 
 // Placeholder pages
 const Home = () => (
-    <div className="p-8">
-        <h1 className="text-3xl font-bold mb-4">DEX Trading Platform</h1>
-        <p className="text-gray-400">Welcome to the distributed exchange. UI is under construction.</p>
+    <div className="p-10 animate-fade-in max-w-4xl mx-auto mt-8 relative">
+        <div className="absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full -z-10" />
+        <h1 className="text-4xl font-extrabold mb-6 tracking-tight text-white">
+            <span className="text-gradient-primary">Next-Gen</span> Trading Platform
+        </h1>
+        <p className="text-lg text-slate-400 max-w-2xl leading-relaxed">
+            Welcome to the ultimate decentralized exchange. The UI has been fully redesigned for maximum performance and an immersive trading experience.
+        </p>
     </div>
 );
 
 const NotFound = () => (
-    <div className="p-8 text-center text-red-500">
-        <h1 className="text-2xl font-bold mb-2">404</h1>
-        <p>Page Not Found</p>
+    <div className="p-8 text-center animate-fade-in mt-12">
+        <h1 className="text-4xl font-extrabold mb-2 text-red-500 text-glow-sell">404</h1>
+        <p className="text-slate-400">Page Not Found</p>
     </div>
 );
 
@@ -151,11 +156,12 @@ function WalletButton() {
     if (address) {
         const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
         return (
-            <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-green-400" title={address}>{short}</span>
+            <div className="flex items-center gap-3 glass-panel px-3 py-1.5 rounded-full border border-indigo-500/30">
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
+                <span className="text-sm font-mono text-slate-200" title={address}>{short}</span>
                 <button
                     onClick={disconnect}
-                    className="text-xs text-gray-400 hover:text-white border border-gray-700 rounded px-2 py-1 transition-colors"
+                    className="text-xs text-slate-400 hover:text-white transition-colors ml-2"
                 >
                     Disconnect
                 </button>
@@ -167,28 +173,39 @@ function WalletButton() {
         <button
             onClick={() => connect().catch((err) => console.error("Wallet connect error:", err))}
             disabled={isConnecting}
-            className="text-xs font-medium bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 text-white rounded px-3 py-1.5 transition-colors"
+            className="relative px-5 py-2 text-sm font-semibold text-white rounded-lg group overflow-hidden transition-all hover:scale-105 disabled:opacity-75 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
-            {isConnecting ? "Connecting…" : "Connect Wallet"}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 pointer-events-none" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-indigo-400 to-purple-400 transition-opacity pointer-events-none blur-md" />
+            <span className="relative z-10">{isConnecting ? "Connecting…" : "Connect Wallet"}</span>
         </button>
     );
 }
 
 export function App() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col font-sans">
             <MockEventSimulation />
             {/* Header / Nav */}
-            <header className="fixed top-0 w-full h-14 bg-gray-900 border-b border-gray-800 flex items-center px-6 z-40 shadow-sm">
-                <div className="text-xl font-bold tracking-tight text-white mr-8">DEX</div>
-                <nav className="flex gap-6">
-                    <Link href="/" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+            <header className="fixed top-0 w-full h-16 glass-panel-heavy flex items-center px-6 z-40 border-b-0 shadow-lg">
+                <div className="flex items-center gap-2 mr-10">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div className="text-2xl font-extrabold tracking-tight text-white font-display">
+                        DEX
+                    </div>
+                </div>
+                <nav className="flex gap-8">
+                    <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
                         Markets
                     </Link>
-                    <Link href="/trade" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                    <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
                         Trade
                     </Link>
-                    <Link href="/risk" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                    <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
                         Risk
                     </Link>
                 </nav>
@@ -198,7 +215,7 @@ export function App() {
             </header>
 
             {/* Main Content Area */}
-            <main className="flex-1 mt-14 overflow-y-auto w-full relative">
+            <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
                 <Switch>
                     <Route path="/" component={Home} />
                     <Route path="/trade" component={MarketPage} />
