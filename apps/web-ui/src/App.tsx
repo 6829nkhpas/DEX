@@ -6,6 +6,7 @@ import { useWallet } from "./wallet/WalletProvider";
 import type { BaseEvent } from "../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload, TradePayload, TickerDeltaPayload } from "./state/types";
 import { Side } from "../../../types/generated-types";
+import { HomePage } from "./pages/HomePage";
 import { MarketPage } from "./pages/MarketPage";
 import { RiskPage } from "./pages/RiskPage";
 
@@ -130,18 +131,6 @@ function MockEventSimulation() {
 }
 
 // Placeholder pages
-const Home = () => (
-    <div className="p-10 animate-fade-in max-w-4xl mx-auto mt-8 relative">
-        <div className="absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full -z-10" />
-        <h1 className="text-4xl font-extrabold mb-6 tracking-tight text-white">
-            <span className="text-gradient-primary">Next-Gen</span> Trading Platform
-        </h1>
-        <p className="text-lg text-slate-400 max-w-2xl leading-relaxed">
-            Welcome to the ultimate decentralized exchange. The UI has been fully redesigned for maximum performance and an immersive trading experience.
-        </p>
-    </div>
-);
-
 const NotFound = () => (
     <div className="p-8 text-center animate-fade-in mt-12">
         <h1 className="text-4xl font-extrabold mb-2 text-red-500 text-glow-sell">404</h1>
@@ -217,7 +206,7 @@ export function App() {
             {/* Main Content Area */}
             <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
                 <Switch>
-                    <Route path="/" component={Home} />
+                    <Route path="/" component={HomePage} />
                     <Route path="/trade" component={MarketPage} />
                     <Route path="/risk" component={RiskPage} />
                     <Route component={NotFound} />
