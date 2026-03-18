@@ -76,105 +76,59 @@ export const Positions: React.FC<PositionsProps> = ({ positions = [] }) => {
     // ---- Render -------------------------------------------------------------
 
     return (
-        <div
-            id="positions-panel"
-            style={{
-                background: "#111827",
-                border: "1px solid #374151",
-                borderRadius: 8,
-                padding: 16,
-                fontFamily: "Inter, system-ui, sans-serif",
-                color: "#e5e7eb",
-                width: "100%",
-            }}
-        >
-            <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+        <div id="positions-panel" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-center gap-2">
                 Positions
                 {enriched.length > 0 && (
-                    <span
-                        style={{
-                            marginLeft: 8,
-                            fontSize: 12,
-                            color: "#9ca3af",
-                            fontWeight: 400,
-                        }}
-                    >
-                        ({enriched.length})
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-semibold">
+                        {enriched.length}
                     </span>
                 )}
             </h3>
 
-            {enriched.length === 0 && (
-                <div style={{ color: "#6b7280", fontSize: 13 }}>
+            {enriched.length === 0 ? (
+                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10">
                     No open positions.
                 </div>
-            )}
-
-            {enriched.length > 0 && (
-                <div style={{ overflowX: "auto" }}>
-                    <table
-                        style={{
-                            width: "100%",
-                            fontSize: 12,
-                            borderCollapse: "collapse",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        <thead>
-                            <tr style={{ borderBottom: "1px solid #374151" }}>
-                                <th style={thStyle}>Symbol</th>
-                                <th style={thStyle}>Size</th>
-                                <th style={thStyle}>Entry</th>
-                                <th style={thStyle}>Mark</th>
-                                <th style={thStyle}>Unrealised PnL</th>
-                                <th style={thStyle}>Liq. Price</th>
+            ) : (
+                <div className="overflow-x-auto custom-scrollbar rounded-xl border border-indigo-500/10 bg-slate-900/40">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th className="px-5 py-3 font-semibold">Symbol</th>
+                                <th className="px-5 py-3 font-semibold">Size</th>
+                                <th className="px-5 py-3 font-semibold">Entry</th>
+                                <th className="px-5 py-3 font-semibold">Mark</th>
+                                <th className="px-5 py-3 font-semibold">Unrealised PnL</th>
+                                <th className="px-5 py-3 font-semibold">Liq. Price</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-indigo-500/10">
                             {enriched.map((pos) => {
                                 const pnlNum = parseFloat(pos.pnl);
                                 const isLong = parseFloat(pos.size) > 0;
                                 return (
                                     <tr
                                         key={pos.symbol}
-                                        style={{
-                                            borderBottom: "1px solid #1f2937",
-                                        }}
+                                        className="hover:bg-indigo-500/5 transition-colors group cursor-default"
                                     >
-                                        <td style={tdStyle}>{pos.symbol}</td>
-                                        <td
-                                            style={{
-                                                ...tdStyle,
-                                                color: isLong
-                                                    ? "#10b981"
-                                                    : "#ef4444",
-                                                fontWeight: 600,
-                                            }}
-                                        >
+                                        <td className="px-5 py-3 font-bold text-white tracking-wide">
+                                            {pos.symbol}
+                                        </td>
+                                        <td className={`px-5 py-3 font-mono font-bold ${isLong ? "text-[#00E676]" : "text-[#FF1744]"}`}>
                                             {pos.size}
                                         </td>
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 font-mono text-slate-300">
                                             {pos.entry_price}
                                         </td>
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 font-mono text-slate-300 group-hover:text-white transition-colors">
                                             {pos.mark_price}
                                         </td>
-                                        <td
-                                            style={{
-                                                ...tdStyle,
-                                                color:
-                                                    pnlNum > 0
-                                                        ? "#10b981"
-                                                        : pnlNum < 0
-                                                            ? "#ef4444"
-                                                            : "#9ca3af",
-                                                fontWeight: 600,
-                                            }}
-                                        >
+                                        <td className={`px-5 py-3 font-mono font-bold tracking-wide flex items-center gap-1 ${pnlNum > 0 ? "text-[#00E676] text-glow-buy" : pnlNum < 0 ? "text-[#FF1744] text-glow-sell" : "text-slate-500"}`}>
                                             {pnlNum > 0 ? "+" : ""}
                                             {pos.pnl}
                                         </td>
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 font-mono text-slate-500">
                                             {pos.liquidation_price ?? "—"}
                                         </td>
                                     </tr>
@@ -186,19 +140,4 @@ export const Positions: React.FC<PositionsProps> = ({ positions = [] }) => {
             )}
         </div>
     );
-};
-
-// ---------------------------------------------------------------------------
-// Inline styles
-// ---------------------------------------------------------------------------
-
-const thStyle: React.CSSProperties = {
-    textAlign: "left",
-    padding: "6px 8px",
-    color: "#9ca3af",
-    fontWeight: 500,
-};
-
-const tdStyle: React.CSSProperties = {
-    padding: "6px 8px",
 };
