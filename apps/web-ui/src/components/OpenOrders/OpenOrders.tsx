@@ -126,154 +126,91 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
     // ---- Render -------------------------------------------------------------
 
     return (
-        <div
-            id="open-orders"
-            style={{
-                background: "#111827",
-                border: "1px solid #374151",
-                borderRadius: 8,
-                padding: 16,
-                fontFamily: "Inter, system-ui, sans-serif",
-                color: "#e5e7eb",
-                width: "100%",
-            }}
-        >
-            <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+        <div id="open-orders" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-center gap-2">
                 Open Orders
                 {activeOrders.length > 0 && (
-                    <span
-                        style={{
-                            marginLeft: 8,
-                            fontSize: 12,
-                            color: "#9ca3af",
-                            fontWeight: 400,
-                        }}
-                    >
-                        ({activeOrders.length})
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-semibold">
+                        {activeOrders.length}
                     </span>
                 )}
             </h3>
 
             {/* Error toast */}
             {errorToast && (
-                <div
-                    id="cancel-error"
-                    style={{
-                        marginBottom: 8,
-                        padding: 8,
-                        background: "#7f1d1d",
-                        borderRadius: 4,
-                        fontSize: 13,
-                    }}
-                >
-                    ❌ {errorToast}
+                <div id="cancel-error" className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm animate-fade-in flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    {errorToast}
                 </div>
             )}
 
-            {!account && (
-                <div style={{ color: "#6b7280", fontSize: 13 }}>
+            {!account ? (
+                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10 flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
                     Waiting for account data…
                 </div>
-            )}
-
-            {account && activeOrders.length === 0 && (
-                <div style={{ color: "#6b7280", fontSize: 13 }}>
+            ) : activeOrders.length === 0 ? (
+                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10">
                     No open orders.
                 </div>
-            )}
-
-            {activeOrders.length > 0 && (
-                <div style={{ overflowX: "auto" }}>
-                    <table
-                        style={{
-                            width: "100%",
-                            fontSize: 12,
-                            borderCollapse: "collapse",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        <thead>
-                            <tr style={{ borderBottom: "1px solid #374151" }}>
-                                <th style={thStyle}>Order ID</th>
-                                <th style={thStyle}>Symbol</th>
-                                <th style={thStyle}>Side</th>
-                                <th style={thStyle}>Price</th>
-                                <th style={thStyle}>Qty</th>
-                                <th style={thStyle}>Remaining</th>
-                                <th style={thStyle}>Status</th>
-                                <th style={thStyle}></th>
+            ) : (
+                <div className="overflow-x-auto custom-scrollbar rounded-xl border border-indigo-500/10 bg-slate-900/40">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th className="px-5 py-3 font-semibold">Order ID</th>
+                                <th className="px-5 py-3 font-semibold">Symbol</th>
+                                <th className="px-5 py-3 font-semibold">Side</th>
+                                <th className="px-5 py-3 font-semibold">Price</th>
+                                <th className="px-5 py-3 font-semibold">Qty</th>
+                                <th className="px-5 py-3 font-semibold">Remaining</th>
+                                <th className="px-5 py-3 font-semibold">Status</th>
+                                <th className="px-5 py-3 font-semibold text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-indigo-500/10">
                             {activeOrders.map((order) => {
                                 const isPending = cancelState.pending[order.order_id] ?? false;
                                 return (
                                     <tr
                                         key={order.order_id}
-                                        style={{ borderBottom: "1px solid #1f2937" }}
+                                        className="hover:bg-indigo-500/5 transition-colors group"
                                     >
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 font-mono text-slate-400">
                                             <span title={order.order_id}>
                                                 {order.order_id.length > 12
                                                     ? `${order.order_id.slice(0, 8)}…`
                                                     : order.order_id}
                                             </span>
                                         </td>
-                                        <td style={tdStyle}>{order.symbol}</td>
-                                        <td
-                                            style={{
-                                                ...tdStyle,
-                                                color:
-                                                    order.side === "BUY"
-                                                        ? "#10b981"
-                                                        : "#ef4444",
-                                                fontWeight: 600,
-                                            }}
-                                        >
+                                        <td className="px-5 py-3 font-bold text-white tracking-wide">
+                                            {order.symbol}
+                                        </td>
+                                        <td className={`px-5 py-3 font-bold ${order.side === "BUY" ? "text-emerald-400" : "text-rose-400"}`}>
                                             {order.side}
                                         </td>
-                                        <td style={tdStyle}>{order.price}</td>
-                                        <td style={tdStyle}>{order.quantity}</td>
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                            {order.price}
+                                        </td>
+                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                            {order.quantity}
+                                        </td>
+                                        <td className="px-5 py-3 font-mono text-slate-300">
                                             {order.remaining_quantity}
                                         </td>
-                                        <td style={tdStyle}>
-                                            <span
-                                                style={{
-                                                    color:
-                                                        order.status.state === "PARTIAL"
-                                                            ? "#fbbf24"
-                                                            : "#60a5fa",
-                                                }}
-                                            >
+                                        <td className="px-5 py-3">
+                                            <span className={`px-2 py-1 rounded border text-xs font-semibold ${order.status.state === "PARTIAL" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "bg-blue-500/10 border-blue-500/20 text-blue-400"}`}>
                                                 {order.status.state}
                                             </span>
                                         </td>
-                                        <td style={tdStyle}>
+                                        <td className="px-5 py-3 text-right">
                                             <button
                                                 id={`cancel-${order.order_id}`}
                                                 disabled={isPending}
-                                                onClick={() =>
-                                                    handleCancel(order.order_id)
-                                                }
-                                                style={{
-                                                    background: isPending
-                                                        ? "#374151"
-                                                        : "#dc2626",
-                                                    color: "#fff",
-                                                    border: "none",
-                                                    borderRadius: 4,
-                                                    padding: "4px 10px",
-                                                    fontSize: 11,
-                                                    fontWeight: 600,
-                                                    cursor: isPending
-                                                        ? "not-allowed"
-                                                        : "pointer",
-                                                    opacity: isPending ? 0.6 : 1,
-                                                    minWidth: 60,
-                                                }}
+                                                onClick={() => handleCancel(order.order_id)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isPending ? "bg-slate-800 border-slate-700 text-slate-400 cursor-not-allowed" : "bg-rose-500/20 border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 shadow-sm"}`}
                                             >
-                                                {isPending ? "⏳…" : "Cancel"}
+                                                {isPending ? "CANCELLING…" : "CANCEL"}
                                             </button>
                                         </td>
                                     </tr>
@@ -285,19 +222,4 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
             )}
         </div>
     );
-};
-
-// ---------------------------------------------------------------------------
-// Inline styles
-// ---------------------------------------------------------------------------
-
-const thStyle: React.CSSProperties = {
-    textAlign: "left",
-    padding: "6px 8px",
-    color: "#9ca3af",
-    fontWeight: 500,
-};
-
-const tdStyle: React.CSSProperties = {
-    padding: "6px 8px",
 };
