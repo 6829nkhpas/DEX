@@ -203,13 +203,26 @@ jobs:
         with:
           version: "v3.14.0"
 
+      - name: Check KUBE_CONFIG secret
+        id: check_kube
+        run: |
+          if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "KUBE_CONFIG secret is not present. Skipping staging deployment."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        working-directory: .
+
       - name: Configure kubectl
+        if: steps.check_kube.outputs.skip == 'false'
         run: |
           mkdir -p $HOME/.kube
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
         working-directory: .
 
       - name: Deploy to staging
+        if: steps.check_kube.outputs.skip == 'false'
         run: |
           helm upgrade --install dex-ui deploy/helm/dex-ui \
             -f deploy/helm/dex-ui/values-staging.yaml \
@@ -222,12 +235,14 @@ jobs:
         working-directory: .
 
       - name: Verify deployment
+        if: steps.check_kube.outputs.skip == 'false'
         run: |
           kubectl get pods -n staging -l app.kubernetes.io/name=dex-ui
           kubectl rollout status deployment/dex-ui -n staging --timeout=3m
         working-directory: .
 
       - name: Health check
+        if: steps.check_kube.outputs.skip == 'false'
         run: |
           sleep 10
           curl -fsS "${{ secrets.STAGING_URL }}/healthz" || echo "Health check pending — verify manually"
