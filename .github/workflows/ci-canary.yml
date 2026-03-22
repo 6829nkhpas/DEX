@@ -65,7 +65,7 @@ jobs:
           helm upgrade --install ${{ env.CANARY_RELEASE }} deploy/helm/dex-ui \
             -f deploy/helm/dex-ui/values-prod.yaml \
             --namespace ${{ env.NAMESPACE }} \
-            --set image.repository=${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.repository=${{ secrets.REGISTRY || 'ghcr.io' }}/${{ secrets.REGISTRY != '' && env.IMAGE_NAME || github.repository }} \
             --set image.tag=${{ inputs.image_tag }} \
             --set replicaCount=1 \
             --set autoscaling.enabled=false \
@@ -197,7 +197,7 @@ jobs:
           helm upgrade --install ${{ env.HELM_RELEASE }} deploy/helm/dex-ui \
             -f deploy/helm/dex-ui/values-prod.yaml \
             --namespace ${{ env.NAMESPACE }} \
-            --set image.repository=${{ secrets.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.repository=${{ secrets.REGISTRY || 'ghcr.io' }}/${{ secrets.REGISTRY != '' && env.IMAGE_NAME || github.repository }} \
             --set image.tag=${{ inputs.image_tag }} \
             --wait \
             --timeout 5m
