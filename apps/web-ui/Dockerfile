@@ -9,19 +9,19 @@ FROM node:20-slim AS builder
 WORKDIR /build
 
 # Copy dependency manifests first (layer cache)
-COPY package.json package-lock.json ./
+COPY apps/web-ui/package.json apps/web-ui/package-lock.json ./
 
 # Install ALL dependencies (dev + prod) for build
 RUN npm ci --ignore-scripts
 
 # Copy source and config
-COPY index.html tsconfig.json vite.config.ts ./
-COPY src/ src/
-COPY perf/ perf/
-COPY tools/ tools/
+COPY apps/web-ui/index.html apps/web-ui/tsconfig.json apps/web-ui/vite.config.ts ./
+COPY apps/web-ui/src/ src/
+COPY apps/web-ui/perf/ perf/
+COPY apps/web-ui/tools/ tools/
 
 # Copy shared types (needed by tsconfig paths)
-COPY ../../types/ /types/
+COPY types/ /types/
 
 # TypeScript check
 RUN npx tsc --noEmit
@@ -43,12 +43,12 @@ COPY --from=builder /build/dist ./dist
 
 # Copy observability server (serves /healthz, /readyz, /metrics)
 COPY --from=builder /build/node_modules ./node_modules
-COPY ../../ops/observability-server.ts ./observability-server.ts
+COPY ops/observability-server.ts ./observability-server.ts
 
 # Install only what's needed for the observability sidecar
 # The static assets are served by nginx/ingress in production;
 # the Node process here serves health + metrics endpoints only.
-COPY package.json ./
+COPY apps/web-ui/package.json ./
 
 # Switch to non-root user
 USER dex
