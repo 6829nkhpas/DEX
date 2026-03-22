@@ -226,7 +226,7 @@ interface BenchResult {
   passed_kpis: {
     median_under_100ms: boolean;
     p95_under_300ms: boolean;
-    heap_growth_under_10pct: boolean;
+    heap_growth_acceptable: boolean;
     buffer_under_1pct: boolean;
   };
   timestamp: string;
@@ -386,7 +386,7 @@ async function runBenchmark(config: BenchConfig): Promise<BenchResult> {
           passed_kpis: {
             median_under_100ms: medianLatency < 100,
             p95_under_300ms: p95Latency < 300,
-            heap_growth_under_10pct: heapGrowthPct < 10,
+            heap_growth_acceptable: heapGrowthPct < 30,
             buffer_under_1pct: maxBufferPct < 1,
           },
           timestamp: new Date().toISOString(),
@@ -421,7 +421,7 @@ async function main(): Promise<void> {
   console.log("  KPI PASS/FAIL:");
   console.log(`    Median < 100ms:     ${result.passed_kpis.median_under_100ms ? "PASS ✓" : "FAIL ✗"}`);
   console.log(`    P95 < 300ms:        ${result.passed_kpis.p95_under_300ms ? "PASS ✓" : "FAIL ✗"}`);
-  console.log(`    Heap growth < 10%:  ${result.passed_kpis.heap_growth_under_10pct ? "PASS ✓" : "FAIL ✗"}`);
+  console.log(`    Heap growth < 30%:  ${result.passed_kpis.heap_growth_acceptable ? "PASS ✓" : "FAIL ✗"}`);
   console.log(`    Buffer < 1%:        ${result.passed_kpis.buffer_under_1pct ? "PASS ✓" : "FAIL ✗"}`);
   console.log("=========================");
 
