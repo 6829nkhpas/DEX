@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
 import { Route, Switch, Link } from "wouter";
 import { DebugPanel } from "./components/DebugPanel";
+import { AuthStatusBadge } from "./components/AuthStatusBadge";
+import { AuthProvider } from "./auth/AuthProvider";
 import { useDexStore } from "./state/StoreProvider";
-import { useWallet } from "./wallet/WalletProvider";
 import type { BaseEvent } from "../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload, TradePayload, TickerDeltaPayload } from "./state/types";
 import { Side } from "../../../types/generated-types";
@@ -138,83 +139,53 @@ const NotFound = () => (
     </div>
 );
 
-/** Wallet connect/disconnect button for the header. */
-function WalletButton() {
-    const { address, isConnecting, connect, disconnect } = useWallet();
-
-    if (address) {
-        const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
-        return (
-            <div className="flex items-center gap-3 glass-panel px-3 py-1.5 rounded-full border border-indigo-500/30">
-                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
-                <span className="text-sm font-mono text-slate-200" title={address}>{short}</span>
-                <button
-                    onClick={disconnect}
-                    className="text-xs text-slate-400 hover:text-white transition-colors ml-2"
-                >
-                    Disconnect
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <button
-            onClick={() => connect().catch((err) => console.error("Wallet connect error:", err))}
-            disabled={isConnecting}
-            className="relative px-5 py-2 text-sm font-semibold text-white rounded-lg group overflow-hidden transition-all hover:scale-105 disabled:opacity-75 disabled:hover:scale-100 disabled:cursor-not-allowed"
-        >
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 pointer-events-none" />
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-indigo-400 to-purple-400 transition-opacity pointer-events-none blur-md" />
-            <span className="relative z-10">{isConnecting ? "Connecting…" : "Connect Wallet"}</span>
-        </button>
-    );
-}
 
 export function App() {
     return (
-        <div className="min-h-screen flex flex-col font-sans">
-            <MockEventSimulation />
-            {/* Header / Nav */}
-            <header className="fixed top-0 w-full h-16 glass-panel-heavy flex items-center px-6 z-40 border-b-0 shadow-lg">
-                <div className="flex items-center gap-2 mr-10">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
+        <AuthProvider>
+            <div className="min-h-screen flex flex-col font-sans">
+                <MockEventSimulation />
+                {/* Header / Nav */}
+                <header className="fixed top-0 w-full h-16 glass-panel-heavy flex items-center px-6 z-40 border-b-0 shadow-lg">
+                    <div className="flex items-center gap-2 mr-10">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <div className="text-2xl font-extrabold tracking-tight text-white font-display">
+                            DEX
+                        </div>
                     </div>
-                    <div className="text-2xl font-extrabold tracking-tight text-white font-display">
-                        DEX
+                    <nav className="flex gap-8">
+                        <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                            Markets
+                        </Link>
+                        <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                            Trade
+                        </Link>
+                        <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                            Risk
+                        </Link>
+                    </nav>
+                    <div className="ml-auto">
+                        <AuthStatusBadge />
                     </div>
-                </div>
-                <nav className="flex gap-8">
-                    <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                        Markets
-                    </Link>
-                    <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                        Trade
-                    </Link>
-                    <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                        Risk
-                    </Link>
-                </nav>
-                <div className="ml-auto">
-                    <WalletButton />
-                </div>
-            </header>
+                </header>
 
-            {/* Main Content Area */}
-            <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
-                <Switch>
-                    <Route path="/" component={HomePage} />
-                    <Route path="/trade" component={MarketPage} />
-                    <Route path="/risk" component={RiskPage} />
-                    <Route component={NotFound} />
-                </Switch>
-            </main>
+                {/* Main Content Area */}
+                <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
+                    <Switch>
+                        <Route path="/" component={HomePage} />
+                        <Route path="/trade" component={MarketPage} />
+                        <Route path="/risk" component={RiskPage} />
+                        <Route component={NotFound} />
+                    </Switch>
+                </main>
 
-            {/* Global Debug Panel (Phase 14A requirement) */}
-            <DebugPanel />
-        </div>
+                {/* Global Debug Panel (Phase 14A requirement) */}
+                <DebugPanel />
+            </div>
+        </AuthProvider>
     );
 }
