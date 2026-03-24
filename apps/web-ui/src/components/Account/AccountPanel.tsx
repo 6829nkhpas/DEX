@@ -13,6 +13,7 @@
 import React, { useState, useCallback } from "react";
 import { useDexStore } from "../../state/StoreProvider";
 import { useWallet } from "../../wallet/WalletProvider";
+import { useAuth } from "../../auth/AuthProvider";
 import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
 
@@ -23,6 +24,8 @@ import { WithdrawModal } from "./WithdrawModal";
 export const AccountPanel: React.FC = () => {
   const { state } = useDexStore();
   const { address, accountId } = useWallet();
+  const { authStatus } = useAuth();
+  const isAuthenticated = authStatus === "authenticated";
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
 
@@ -50,6 +53,13 @@ export const AccountPanel: React.FC = () => {
           title={accountId ?? ""}
         >
           {accountId ? `${accountId.slice(0, 8)}…` : "—"}
+        </span>
+      </div>
+      {/* Auth status indicator */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <div className={`w-1.5 h-1.5 rounded-full ${isAuthenticated ? "bg-green-500" : "bg-amber-400"}`} />
+        <span className={`text-xs font-medium ${isAuthenticated ? "text-green-400" : "text-amber-400"}`}>
+          {isAuthenticated ? "Authenticated" : "Sign in to trade"}
         </span>
       </div>
 
@@ -89,8 +99,13 @@ export const AccountPanel: React.FC = () => {
           Deposit
         </button>
         <button
-          onClick={() => setShowWithdraw(true)}
-          className="flex-1 py-1.5 text-xs font-medium bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
+          onClick={() => isAuthenticated && setShowWithdraw(true)}
+          disabled={!isAuthenticated}
+          title={!isAuthenticated ? "Sign in to withdraw" : undefined}
+          className={`flex-1 py-1.5 text-xs font-medium text-white rounded transition-colors ${isAuthenticated
+              ? "bg-red-700 hover:bg-red-600"
+              : "bg-slate-700 cursor-not-allowed opacity-60"
+            }`}
         >
           Withdraw
         </button>
