@@ -13,6 +13,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { DexApiClient } from "../../api/rest-client";
 import { ApiError } from "../../api/types";
 import { useDexStore } from "../../state/StoreProvider";
+import { useAuth } from "../../auth/AuthProvider";
 import type { Order } from "../../../../../types/generated-types";
 
 // ---------------------------------------------------------------------------
@@ -61,9 +62,13 @@ export function cancelErrorMessage(err: ApiError): string {
 // ---------------------------------------------------------------------------
 
 export const OpenOrders: React.FC<OpenOrdersProps> = ({
-    accountId = "dev-account",
-    token = "dev-token-123",
+    accountId: accountIdProp,
+    token: tokenProp,
 }) => {
+    const { authStatus, session } = useAuth();
+    const isAuthenticated = authStatus === "authenticated";
+    const accountId = session?.accountId ?? accountIdProp ?? "dev-account";
+    const token = session?.signature ?? tokenProp ?? "dev-token-123";
     const { state } = useDexStore();
     const [cancelState, setCancelState] = useState<CancelState>({ pending: {} });
     const [errorToast, setErrorToast] = useState<string | null>(null);
@@ -204,14 +209,23 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
                                             </span>
                                         </td>
                                         <td className="px-5 py-3 text-right">
-                                            <button
-                                                id={`cancel-${order.order_id}`}
-                                                disabled={isPending}
-                                                onClick={() => handleCancel(order.order_id)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isPending ? "bg-slate-800 border-slate-700 text-slate-400 cursor-not-allowed" : "bg-rose-500/20 border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 shadow-sm"}`}
-                                            >
-                                                {isPending ? "CANCELLING…" : "CANCEL"}
-                                            </button>
+                                            {!isAuthenticated ? (
+                                                <span
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold border bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed"
+                                                    title="Sign in to cancel orders"
+                                                >
+                                                    CANCEL
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    id={`cancel-${order.order_id}`}
+                                                    disabled={isPending}
+                                                    onClick={() => handleCancel(order.order_id)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isPending ? "bg-slate-800 border-slate-700 text-slate-400 cursor-not-allowed" : "bg-rose-500/20 border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 shadow-sm"}`}
+                                                >
+                                                    {isPending ? "CANCELLING…" : "CANCEL"}
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 );
