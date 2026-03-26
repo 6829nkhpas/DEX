@@ -225,6 +225,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [address, accountId, signMessage]);
 
     // -------------------------------------------------------------------------
+    // Session expiry proactive timer
+    // Polls every 60 s; if session exists but is now expired, transitions to
+    // "expired" without requiring a page reload.
+    // -------------------------------------------------------------------------
+
+    useEffect(() => {
+        if (authStatus !== "authenticated" || !session || !address) return;
+
+        const POLL_MS = 60_000;
+        const timer = setInterval(() => {
+            if (!isSessionValid(session, address)) {
+                doSignOut("expired");
+            }
+        }, POLL_MS);
+
+        return () => clearInterval(timer);
+    }, [authStatus, session, address, doSignOut]);
+
+    // -------------------------------------------------------------------------
     // signOut
     // -------------------------------------------------------------------------
 
