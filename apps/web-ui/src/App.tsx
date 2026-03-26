@@ -2,7 +2,9 @@ import React, { useEffect } from "react";
 import { Route, Switch, Link } from "wouter";
 import { DebugPanel } from "./components/DebugPanel";
 import { AuthStatusBadge } from "./components/AuthStatusBadge";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 import { AuthProvider } from "./auth/AuthProvider";
+import { WalletProvider } from "./wallet/WalletProvider";
 import { useDexStore } from "./state/StoreProvider";
 import type { BaseEvent } from "../../../types/generated-types";
 import type { OrderbookSnapshotPayload, OrderbookDeltaPayload, TradePayload, TickerDeltaPayload } from "./state/types";
@@ -142,50 +144,55 @@ const NotFound = () => (
 
 export function App() {
     return (
-        <AuthProvider>
-            <div className="min-h-screen flex flex-col font-sans">
-                <MockEventSimulation />
-                {/* Header / Nav */}
-                <header className="fixed top-0 w-full h-16 glass-panel-heavy flex items-center px-6 z-40 border-b-0 shadow-lg">
-                    <div className="flex items-center gap-2 mr-10">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
+        <WalletProvider>
+            <AuthProvider>
+                <div className="min-h-screen flex flex-col font-sans">
+                    <MockEventSimulation />
+                    {/* Header / Nav */}
+                    <header className="fixed top-0 w-full h-16 glass-panel-heavy flex items-center px-6 z-40 border-b-0 shadow-lg">
+                        <div className="flex items-center gap-2 mr-10">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div className="text-2xl font-extrabold tracking-tight text-white font-display">
+                                DEX
+                            </div>
                         </div>
-                        <div className="text-2xl font-extrabold tracking-tight text-white font-display">
-                            DEX
+                        <nav className="flex gap-8">
+                            <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                                Markets
+                            </Link>
+                            <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                                Trade
+                            </Link>
+                            <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
+                                Risk
+                            </Link>
+                        </nav>
+                        <div className="ml-auto">
+                            <AuthStatusBadge />
                         </div>
-                    </div>
-                    <nav className="flex gap-8">
-                        <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                            Markets
-                        </Link>
-                        <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                            Trade
-                        </Link>
-                        <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                            Risk
-                        </Link>
-                    </nav>
-                    <div className="ml-auto">
-                        <AuthStatusBadge />
-                    </div>
-                </header>
+                    </header>
 
-                {/* Main Content Area */}
-                <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
-                    <Switch>
-                        <Route path="/" component={HomePage} />
-                        <Route path="/trade" component={MarketPage} />
-                        <Route path="/risk" component={RiskPage} />
-                        <Route component={NotFound} />
-                    </Switch>
-                </main>
+                    {/* Connection State Banner — below the fixed header */}
+                    <ConnectionBanner />
 
-                {/* Global Debug Panel (Phase 14A requirement) */}
-                <DebugPanel />
-            </div>
-        </AuthProvider>
+                    {/* Main Content Area */}
+                    <main className="flex-1 mt-16 w-full relative z-10 flex flex-col">
+                        <Switch>
+                            <Route path="/" component={HomePage} />
+                            <Route path="/trade" component={MarketPage} />
+                            <Route path="/risk" component={RiskPage} />
+                            <Route component={NotFound} />
+                        </Switch>
+                    </main>
+
+                    {/* Global Debug Panel (Phase 14A requirement) */}
+                    <DebugPanel />
+                </div>
+            </AuthProvider>
+        </WalletProvider>
     );
 }
