@@ -10,6 +10,7 @@ import { ApiError } from "../../api/types";
 import type { CreateOrderRequest, OrderResponse } from "../../api/types";
 import type { Side, TimeInForce } from "../../../../../types/generated-types";
 import { useDexStore } from "../../state/StoreProvider";
+import { useAuth } from "../../auth/AuthProvider";
 
 // ---------------------------------------------------------------------------
 // Validation helpers  (exported for unit tests)
@@ -146,9 +147,15 @@ const DEBOUNCE_MS = 500;
 
 export const OrderEntry: React.FC<OrderEntryProps> = ({
     symbol,
-    accountId = "dev-account",
-    token = "dev-token-123",
+    accountId: accountIdProp,
+    token: tokenProp,
 }) => {
+    // ---- auth state --------------------------------------------------------
+    const { authStatus, session } = useAuth();
+    const isAuthenticated = authStatus === "authenticated";
+    // Use session credentials when authenticated, fall back to props for tests
+    const accountId = session?.accountId ?? accountIdProp ?? "dev-account";
+    const token = session?.signature ?? tokenProp ?? "dev-token-123";
     // ---- form state --------------------------------------------------------
     const [side, setSide] = useState<string>("BUY");
     const [orderType, setOrderType] = useState<string>("LIMIT");
@@ -285,7 +292,27 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
 
     // ---- render ------------------------------------------------------------
 
-    const isSubmitDisabled = submitting || rateLimited;
+    const isSubmitDisabled = submitting || rateLimited || !isAuthenticated;
+
+    // ---- auth gate ---------------------------------------------------------
+    if (!isAuthenticated) {
+        return (
+            <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[320px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+                <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-baseline gap-2">
+                    New Order
+                    <span className="text-slate-500 font-sans font-normal text-sm">— {symbol}</span>
+                </h3>
+                <div className="flex items-center gap-3 px-4 py-5 rounded-xl bg-slate-900/60 border border-amber-500/20 text-amber-400 text-sm font-medium">
+                    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Sign in to place orders
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[320px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
