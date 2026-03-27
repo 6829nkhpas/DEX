@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDexStore } from "../state/StoreProvider";
 import { useWallet } from "../wallet/WalletProvider";
+import { useAuth } from "../auth/AuthProvider";
 import { Orderbook } from "../components/Orderbook/Orderbook";
 import { TradeTape } from "../components/TradeTape/TradeTape";
 import { TickerPanel } from "../components/Ticker/TickerPanel";
@@ -8,6 +9,43 @@ import { OrderEntry } from "../components/OrderEntry/OrderEntry";
 import { OpenOrders } from "../components/OpenOrders/OpenOrders";
 import { Positions } from "../components/Positions/Positions";
 import { AccountPanel } from "../components/Account/AccountPanel";
+
+// ---------------------------------------------------------------------------
+// AuthGatePanel — inline auth gate for account-specific panels on this page
+// ---------------------------------------------------------------------------
+
+const AuthGatePanel: React.FC<{ label: string; children: React.ReactNode }> = ({
+    label,
+    children,
+}) => {
+    const { authStatus, signIn } = useAuth();
+
+    if (authStatus === "authenticated") {
+        return <>{children}</>;
+    }
+
+    return (
+        <div className="glass-panel p-5 rounded-2xl flex items-center justify-center gap-3 border border-amber-500/20 bg-amber-500/5 text-amber-400 text-sm font-medium min-h-[80px]">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span>Sign in to view {label}</span>
+            {authStatus !== "signing" && (
+                <button
+                    onClick={() => signIn().catch(() => { })}
+                    className="ml-1 text-xs font-bold px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"
+                >
+                    Sign In
+                </button>
+            )}
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
+// MarketPage
+// ---------------------------------------------------------------------------
 
 export const MarketPage: React.FC = () => {
     const [symbol, setSymbol] = useState("BTC/USDT");
@@ -67,7 +105,7 @@ export const MarketPage: React.FC = () => {
                     <option value="SOL/USDT">SOL/USDT</option>
                 </select>
                 <div className="ml-auto flex items-center gap-2 text-sm text-gray-400">
-                    <div className={`w-2 h-2 rounded-full ${connectionStatus === "connected" ? "bg-green-500" : connectionStatus === "connecting" ? "bg-yellow-500" : "bg-red-500"}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${connectionStatus === "connected" ? "bg-green-500" : connectionStatus === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}></div>
                     {connectionStatus}
                 </div>
             </div>
@@ -78,15 +116,23 @@ export const MarketPage: React.FC = () => {
                 <Orderbook symbol={symbol} />
                 <TradeTape symbol={symbol} />
                 <div className="flex flex-col gap-4">
+                    {/* OrderEntry has its own internal auth gate */}
                     <OrderEntry symbol={symbol} />
-                    <AccountPanel />
+                    {/* AccountPanel — requires auth */}
+                    <AuthGatePanel label="account balances">
+                        <AccountPanel />
+                    </AuthGatePanel>
                 </div>
             </div>
 
-            {/* Orders & Positions panels */}
+            {/* Orders & Positions panels — both require auth */}
             <div className="flex flex-col gap-6 mt-2">
-                <OpenOrders />
-                <Positions />
+                <AuthGatePanel label="open orders">
+                    <OpenOrders />
+                </AuthGatePanel>
+                <AuthGatePanel label="positions">
+                    <Positions />
+                </AuthGatePanel>
             </div>
         </div>
     );
