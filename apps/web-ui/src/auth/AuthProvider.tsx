@@ -36,6 +36,18 @@ import {
     clearSession,
     type AuthSession,
 } from "./authService";
+import {
+    defaultRateLimiterRegistry,
+    RateLimitError,
+} from "../infra/rate-limiter";
+import { logger } from "../infra/logger";
+
+// Auth sign-in rate limiter: max 5 attempts per 60 seconds.
+// Prevents brute-force signature spam from a single tab.
+const AUTH_SIGN_IN_LIMITER_CONFIG = {
+    capacity: 5,
+    refillRate: 5 / 60, // 5 tokens per 60 seconds
+} as const;
 
 // ---------------------------------------------------------------------------
 // AuthStatus — all possible states the auth layer can be in
@@ -190,8 +202,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        // ---- Rate limit check: max 5 sign-in attempts per 60 seconds ----
+        const signInLimiter = defaultRateLimiterRegistry.getOrCreate(
+            "authSignIn",
+            AUTH_SIGN_IN_LIMITER_CONFIG,
+        );
+        if (!signInLimiter.tryConsume()) {
+            const waitMs = signInLimiter.estimatedWaitMs();
+            const rlErr = new RateLimitError("authSignIn", waitMs);
+            setError(
+                `Too many sign-in attempts. Please wait ${Math.ceil(waitMs / 1000)}s before trying again.`,
+            );
+            // Stay on "connected" — this is a throttle, not a rejection
+            setAuthStatus("connected");
+            logger.warn("AuthProvider.signIn: rate limited", { waitMs });
+            return;
+        }
+        // Discard rlErr from outer scope — it's only used for logging above.
+        void (null as unknown as RateLimitError | null);
+
         setError(null);
         setAuthStatus("signing");
+        logger.info("AuthProvider.signIn: initiating sign-in", { address });
 
         try {
             const nonce = generateNonce();
@@ -212,15 +244,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(newSession);
             sessionAddressRef.current = address;
             setAuthStatus("authenticated");
+            logger.info("AuthProvider.signIn: authenticated", { address, accountId });
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             // MetaMask rejection codes
             const isRejection =
                 msg.includes("User denied") ||
                 msg.includes("user rejected") ||
-                msg.includes("4001");
+                msg.includes("4001") ||
+                msg.includes("already in progress");
             setError(isRejection ? "Signature request was rejected." : `Sign-in failed: ${msg}`);
             setAuthStatus(isRejection ? "rejected" : "connected");
+            logger.warn("AuthProvider.signIn: failed", { isRejection, error: msg });
         }
     }, [address, accountId, signMessage]);
 
