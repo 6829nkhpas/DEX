@@ -52,11 +52,23 @@ export interface WalletContextValue {
   accountId: string | null;
   /** True while a connect() call is in-flight. */
   isConnecting: boolean;
+  /**
+   * True when the wallet is recovering from a transient disconnect
+   * (e.g. chain switch or provider reload) but was previously connected.
+   * Distinct from isConnecting which only covers initial connect().
+   */
+  isReconnecting: boolean;
+  /**
+   * Last wallet-layer error message, or null.
+   * Set on connection failure, no-provider, or sign rejection at the
+   * provider level (not auth-layer rejection).
+   */
+  connectionError: string | null;
   /** Request wallet connection (MetaMask popup). */
   connect: () => Promise<void>;
   /** Disconnect (client-side clear). */
   disconnect: () => void;
-  /** Sign an arbitrary message via personal_sign. */
+  /** Sign an arbitrary message via personal_sign. Throws if another sign is already in-flight. */
   signMessage: (message: string) => Promise<string>;
 }
 
@@ -128,6 +140,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // In-flight guard: prevents parallel personal_sign calls.
+  // If a sign is already in-flight, a second call will throw.
+  const signingInFlightRef = React.useRef(false);
 
   // Derive account ID whenever address changes
   useEffect(() => {
@@ -152,9 +170,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const handleAccountsChanged = (accounts: unknown) => {
       const accs = accounts as string[];
       if (accs.length === 0) {
+        // Account disconnected from wallet side
         setAddress(null);
-      } else {
+        setConnectionError(null);
+      } else if (accs[0] !== address) {
+        // Account changed — brief reconnecting state
+        setIsReconnecting(true);
         setAddress(accs[0]);
+        setConnectionError(null);
+        // Reconnecting clears after accountId is derived (see useEffect below)
       }
     };
 
@@ -162,14 +186,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return () => {
       provider.removeListener("accountsChanged", handleAccountsChanged);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
+
+  // Clear isReconnecting once accountId is ready after an account switch
+  useEffect(() => {
+    if (isReconnecting && accountId !== null) {
+      setIsReconnecting(false);
+    }
+  }, [isReconnecting, accountId]);
 
   const connect = useCallback(async () => {
+    // Prevent double-connect while already connecting
+    if (isConnecting) return;
+
     const provider = window.ethereum;
     if (!provider) {
-      throw new Error("No EIP-1193 wallet detected. Please install MetaMask.");
+      const msg = "No EIP-1193 wallet detected. Please install MetaMask.";
+      setConnectionError(msg);
+      throw new Error(msg);
     }
     setIsConnecting(true);
+    setConnectionError(null);
     try {
       const accounts = (await provider.request({
         method: "eth_requestAccounts",
@@ -177,14 +215,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (accounts.length > 0) {
         setAddress(accounts[0]);
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setConnectionError(msg);
+      throw err;
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [isConnecting]);
 
   const disconnect = useCallback(() => {
     setAddress(null);
     setAccountId(null);
+    setConnectionError(null);
+    setIsReconnecting(false);
+    // Reset in-flight sign guard
+    signingInFlightRef.current = false;
   }, []);
 
   const signMessage = useCallback(
@@ -193,11 +239,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (!provider || !address) {
         throw new Error("Wallet not connected");
       }
-      const signature = (await provider.request({
-        method: "personal_sign",
-        params: [message, address],
-      })) as string;
-      return signature;
+      // In-flight guard: prevent concurrent personal_sign calls
+      if (signingInFlightRef.current) {
+        throw new Error(
+          "A signature request is already in progress. Please complete or reject it in your wallet.",
+        );
+      }
+      signingInFlightRef.current = true;
+      try {
+        const signature = (await provider.request({
+          method: "personal_sign",
+          params: [message, address],
+        })) as string;
+        return signature;
+      } finally {
+        signingInFlightRef.current = false;
+      }
     },
     [address],
   );
@@ -207,11 +264,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       address,
       accountId,
       isConnecting,
+      isReconnecting,
+      connectionError,
       connect,
       disconnect,
       signMessage,
     }),
-    [address, accountId, isConnecting, connect, disconnect, signMessage],
+    [address, accountId, isConnecting, isReconnecting, connectionError, connect, disconnect, signMessage],
   );
 
   return (
