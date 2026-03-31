@@ -35,6 +35,16 @@
 - `OpenOrders`: live order table, per-row cancel with error toasts. No optimistic removal.
 - `Positions`: live position table with unrealized PnL via `decimal.js`.
 
+### Production Hardening (Phase 21)
+
+- **Wallet service**: `isReconnecting` flag, `connectionError` surface, in-flight sign guard, double-connect protection.
+- **Rate limiting**: `RateLimiterRegistry` (named per-action limiters), `RateLimitError` (typed, carries `waitMs`), singleton `defaultRateLimiterRegistry`.
+- **Auth rate limiter**: Sign-in gated to 5 attempts / 60 s; rate-limited status stays `"connected"` with retry hint.
+- **`useProtectedAction` hook**: Composable guard enforcing auth + rate-limit before sensitive actions.
+- **`GovernanceContext`**: `GovernanceProvider`, `GovernanceGuard`, `useGovernance`, `useGovernanceAudit`, `hasRole`. Role allowlist is dev-mode placeholder; interface stable for backend claims.
+- **Structured logger**: `logger.info/warn/error` singleton; silent in production via `VITE_LOG_LEVEL=silent`.
+- **Test coverage**: `phase21-hardening.test.ts` — 11 suites, 50+ assertions covering all hardening paths.
+
 ---
 
 ## Known Limitations
