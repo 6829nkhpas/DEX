@@ -92,5 +92,43 @@ These checks validate the Web UI auth/wallet layer before public traffic is enab
 
 ### 6.8 Tests
 
-- [ ] `npm test` from `apps/web-ui` — all 3 test suites pass (auth-session, wallet-account, launch-readiness).
+- [ ] `npm test` from `apps/web-ui` — all 7 test suites pass (auth-session, wallet-account, launch-readiness, risk-models, infra, rate-limit-e2e, phase21-hardening).
 - [ ] `npm run typecheck` from `apps/web-ui` — 0 TypeScript errors.
+
+---
+
+## 7. Phase 21 — Production Hardening Checks
+
+### 7.1 Wallet Hardening
+
+- [ ] **Reconnect state**: `isReconnecting` transitions correctly during `accountsChanged`; UI does not flash error.
+- [ ] **Connection error surface**: Failed `connect()` sets `connectionError`; no crash.
+- [ ] **In-flight sign guard**: Concurrent `signMessage` calls blocked with clear error; guard resets on completion.
+- [ ] **Double-connect protection**: Calling `connect()` while already connecting is a no-op.
+
+### 7.2 Auth Rate Limiting
+
+- [ ] **Sign-in rate limit**: 6th sign-in attempt within 60s is blocked with friendly message showing wait time.
+- [ ] **Status preserved**: Rate-limited attempt keeps status at `connected`, not `rejected`.
+- [ ] **Window refills**: After the 60-second window, sign-in is allowed again.
+
+### 7.3 Security Invariants
+
+- [ ] **useProtectedAction**: `isDisabled = true` when not authenticated or rate-limited.
+- [ ] **useProtectedAction**: `execute()` is a no-op when `isDisabled`; no double-fire.
+- [ ] **RateLimitError**: Carries `action` and `waitMs` for UI feedback.
+
+### 7.4 Governance Controls
+
+- [ ] **GovernanceGuard**: Renders children only when role threshold met.
+- [ ] **Unauthenticated role**: `adminRole = "none"` when not authenticated.
+- [ ] **Audit log**: `logAction()` appends entry with timestamp, action, accountId, role.
+
+### 7.5 Structured Logging
+
+- [ ] **Dev mode**: Key auth events (sign-in start, success, rate-limit, failure) appear in console.
+- [ ] **Silent mode**: `VITE_LOG_LEVEL=silent` suppresses all log output.
+
+### 7.6 Tests
+
+- [ ] `phase21-hardening.test.ts` — all 11 suites pass (wallet reconnect, sign guard, rate limiter, registry, protected action, governance, recovery).
