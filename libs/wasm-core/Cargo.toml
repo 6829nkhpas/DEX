@@ -6,6 +6,15 @@ authors = ["Exchange Team"]
 description = "Client-side deterministic computation layer for DEX"
 license = "MIT"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Enable WASM-specific bindings and adapter code.
+# This feature is a marker — actual wasm32 compilation is controlled by --target.
+wasm = []
+
 [dependencies]
 # Internal types (frozen)
 types = { path = "../types" }
@@ -31,9 +40,6 @@ hex = "0.4"
 
 # Error handling
 thiserror = "1.0"
-
-# Random for key generation (dev/test only exposed via feature)
-rand = "0.8"
 
 [dev-dependencies]
 rand = "0.8"
