@@ -38,12 +38,11 @@
 
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
-use std::collections::BTreeMap;
 
 use crate::margin::{CrossMarginEngine, RiskLevel};
 use crate::wasm_bindings::{
     margin_preview_json, risk_level_from_string, MarginPreviewInput, MarginPreviewOutput,
-    OrderInput, PositionInput,
+    PositionInput,
 };
 use types::ids::AccountId;
 use types::numeric::{Price, Quantity};
@@ -337,25 +336,26 @@ fn parse_native_position(
     account_id: AccountId,
     index: usize,
 ) -> Result<Position, AdapterError> {
-    let err = |field: &str, e: impl std::fmt::Display| -> AdapterError {
-        AdapterError::InputError(format!("positions[{index}].{field}: {e}"))
-    };
-
     let side = match input.side.as_str() {
         "LONG" => PositionSide::LONG,
         "SHORT" => PositionSide::SHORT,
-        other => return Err(err("side", format!("Invalid: {other}"))),
+        other => {
+            return Err(native_pos_error(index, "side", &format!("Invalid: {other}")))
+        }
     };
 
-    let size = Quantity::from_str(&input.size).map_err(|e| err("size", e))?;
-    let entry_price = Price::from_str(&input.entry_price).map_err(|e| err("entry_price", e))?;
-    let mark_price = Price::from_str(&input.mark_price).map_err(|e| err("mark_price", e))?;
-    let liquidation_price =
-        Price::from_str(&input.liquidation_price).map_err(|e| err("liquidation_price", e))?;
-    let initial_margin =
-        Decimal::from_str(&input.initial_margin).map_err(|e| err("initial_margin", e))?;
-    let maintenance_margin =
-        Decimal::from_str(&input.maintenance_margin).map_err(|e| err("maintenance_margin", e))?;
+    let size = Quantity::from_str(&input.size)
+        .map_err(|e| native_pos_error(index, "size", &e))?;
+    let entry_price = Price::from_str(&input.entry_price)
+        .map_err(|e| native_pos_error(index, "entry_price", &e))?;
+    let mark_price = Price::from_str(&input.mark_price)
+        .map_err(|e| native_pos_error(index, "mark_price", &e))?;
+    let liquidation_price = Price::from_str(&input.liquidation_price)
+        .map_err(|e| native_pos_error(index, "liquidation_price", &e))?;
+    let initial_margin = Decimal::from_str(&input.initial_margin)
+        .map_err(|e| native_pos_error(index, "initial_margin", &e))?;
+    let maintenance_margin = Decimal::from_str(&input.maintenance_margin)
+        .map_err(|e| native_pos_error(index, "maintenance_margin", &e))?;
 
     let market_id = types::ids::MarketId::new(&input.symbol);
 
@@ -372,4 +372,9 @@ fn parse_native_position(
         input.leverage,
         input.timestamp,
     ))
+}
+
+/// Format an adapter position field error.
+fn native_pos_error(index: usize, field: &str, error: &dyn std::fmt::Display) -> AdapterError {
+    AdapterError::InputError(format!("positions[{index}].{field}: {error}"))
 }

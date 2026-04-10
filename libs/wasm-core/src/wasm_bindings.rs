@@ -32,13 +32,13 @@
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use crate::margin::{CrossMarginEngine, MarginPreview, RiskLevel};
 use types::ids::AccountId;
 use types::numeric::{Price, Quantity};
 use types::order::Side;
 use types::position::{Position, PositionSide};
+
 
 // ---------------------------------------------------------------------------
 // JSON Boundary Types — Input
@@ -269,27 +269,20 @@ fn parse_position_input(
     account_id: AccountId,
     index: usize,
 ) -> Result<Position, String> {
-    let ctx = |field: &str, e: impl std::fmt::Display| -> String {
-        serde_json::to_string(&WasmError::input_error(format!(
-            "positions[{index}].{field}: {e}"
-        )))
-        .unwrap_or_else(|_| format!(r#"{{"code":"INPUT_ERROR","message":"positions[{index}].{field}"}}"#))
-    };
-
     let side = parse_position_side(&input.side)
-        .map_err(|e| ctx("side", e))?;
+        .map_err(|e| position_field_error(index, "side", &e))?;
     let size = Quantity::from_str(&input.size)
-        .map_err(|e| ctx("size", e))?;
+        .map_err(|e| position_field_error(index, "size", &e))?;
     let entry_price = Price::from_str(&input.entry_price)
-        .map_err(|e| ctx("entry_price", e))?;
+        .map_err(|e| position_field_error(index, "entry_price", &e))?;
     let mark_price = Price::from_str(&input.mark_price)
-        .map_err(|e| ctx("mark_price", e))?;
+        .map_err(|e| position_field_error(index, "mark_price", &e))?;
     let liquidation_price = Price::from_str(&input.liquidation_price)
-        .map_err(|e| ctx("liquidation_price", e))?;
+        .map_err(|e| position_field_error(index, "liquidation_price", &e))?;
     let initial_margin = Decimal::from_str(&input.initial_margin)
-        .map_err(|e| ctx("initial_margin", e))?;
+        .map_err(|e| position_field_error(index, "initial_margin", &e))?;
     let maintenance_margin = Decimal::from_str(&input.maintenance_margin)
-        .map_err(|e| ctx("maintenance_margin", e))?;
+        .map_err(|e| position_field_error(index, "maintenance_margin", &e))?;
 
     let market_id = types::ids::MarketId::new(&input.symbol);
 
@@ -306,6 +299,16 @@ fn parse_position_input(
         input.leverage,
         input.timestamp,
     ))
+}
+
+/// Format a position field error as a JSON-encoded WasmError string.
+fn position_field_error(index: usize, field: &str, error: &dyn std::fmt::Display) -> String {
+    serde_json::to_string(&WasmError::input_error(format!(
+        "positions[{index}].{field}: {error}"
+    )))
+    .unwrap_or_else(|_| {
+        format!(r#"{{"code":"INPUT_ERROR","message":"positions[{index}].{field}"}}"#)
+    })
 }
 
 /// Parse order side from string.
