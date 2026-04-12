@@ -12,13 +12,18 @@
 //!  │            MarginPreviewAdapter                  │
 //!  │                                                  │
 //!  │  compute()                                       │
-//!  │    ├── wasm_enabled?                             │
-//!  │    │   ├── YES → compute_via_boundary()          │
-//!  │    │   │         ├── validate_output()           │
-//!  │    │   │         │   ├── OK → return result      │
-//!  │    │   │         │   └── FAIL → fallback native  │
-//!  │    │   │         └── ERROR → fallback native     │
-//!  │    │   └── NO → compute_native()                 │
+//!  │    ├── mode?                                     │
+//!  │    │   ├── Native → compute_native()             │
+//!  │    │   ├── Boundary → compute_via_boundary()     │
+//!  │    │   │    ├── validate_output()                │
+//!  │    │   │    │   ├── OK → return result           │
+//!  │    │   │    │   └── FAIL → fallback native       │
+//!  │    │   │    └── ERROR → fallback native          │
+//!  │    │   └── WasmRuntime → compute_via_runtime()   │
+//!  │    │        ├── validate_output()                │
+//!  │    │        │   ├── OK → return result           │
+//!  │    │        │   └── FAIL → fallback native       │
+//!  │    │        └── ERROR → fallback native          │
 //!  │    └── return validated result                   │
 //!  └──────────────────────────────────────────────────┘
 //! ```
@@ -49,14 +54,23 @@ use types::numeric::{Price, Quantity};
 use types::order::Side;
 use types::position::{Position, PositionSide};
 
+#[cfg(feature = "wasm-host")]
+use std::sync::Arc;
+
+#[cfg(feature = "wasm-host")]
+use crate::wasm_host::WasmRuntime;
+
 // ---------------------------------------------------------------------------
-// Feature flag
+// Feature flag (backward compatible)
 // ---------------------------------------------------------------------------
 
 /// Runtime feature flag for WASM execution.
 ///
 /// Controls whether the adapter attempts the WASM boundary path
 /// or goes directly to native computation.
+///
+/// This is the original Phase 12 interface, preserved for backward
+/// compatibility. For Phase 13 and beyond, prefer `WasmExecutionMode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WasmFeatureFlag {
     /// WASM boundary path enabled — will be tried first with fallback
@@ -73,6 +87,51 @@ impl Default for WasmFeatureFlag {
 }
 
 // ---------------------------------------------------------------------------
+// Execution mode (Phase 13)
+// ---------------------------------------------------------------------------
+
+/// Execution mode for the margin preview adapter.
+///
+/// This is the primary interface for controlling execution path selection.
+/// It supersedes `WasmFeatureFlag` but both remain available.
+///
+/// # Modes
+///
+/// - `Native`: Direct Rust computation, no serialization overhead
+/// - `Boundary`: Same-process JSON boundary (exercises the WASM code path
+///   without an actual WASM runtime — useful for testing and validation)
+/// - `WasmRuntime`: Actual WASM module execution via wasmtime (requires
+///   the `wasm-host` feature and a loaded `WasmRuntime`)
+#[derive(Clone)]
+pub enum WasmExecutionMode {
+    /// Always use native Rust computation (safest, fastest)
+    Native,
+    /// Use same-process JSON boundary path (tests WASM FFI code path)
+    Boundary,
+    /// Use actual WASM runtime via wasmtime
+    #[cfg(feature = "wasm-host")]
+    WasmRuntime(Arc<WasmRuntime>),
+}
+
+impl std::fmt::Debug for WasmExecutionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WasmExecutionMode::Native => write!(f, "Native"),
+            WasmExecutionMode::Boundary => write!(f, "Boundary"),
+            #[cfg(feature = "wasm-host")]
+            WasmExecutionMode::WasmRuntime(_) => write!(f, "WasmRuntime"),
+        }
+    }
+}
+
+impl Default for WasmExecutionMode {
+    /// Default: Native (safe, predictable behavior)
+    fn default() -> Self {
+        WasmExecutionMode::Native
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Adapter errors
 // ---------------------------------------------------------------------------
 
@@ -85,6 +144,8 @@ pub enum AdapterError {
     BoundaryError(String),
     /// Output validation failed
     ValidationError(ValidationFailure),
+    /// WASM host runtime error
+    RuntimeError(String),
     /// Both WASM and native paths failed (should never happen)
     InternalError(String),
 }
@@ -95,6 +156,7 @@ impl std::fmt::Display for AdapterError {
             AdapterError::InputError(msg) => write!(f, "Input error: {msg}"),
             AdapterError::BoundaryError(msg) => write!(f, "Boundary error: {msg}"),
             AdapterError::ValidationError(v) => write!(f, "Validation error: {v:?}"),
+            AdapterError::RuntimeError(msg) => write!(f, "Runtime error: {msg}"),
             AdapterError::InternalError(msg) => write!(f, "Internal error: {msg}"),
         }
     }
@@ -189,27 +251,52 @@ fn parse_decimal_field(field: &str, value: &str) -> Result<Decimal, ValidationFa
 /// 3. Validates all outputs before returning
 /// 4. Falls back to native on any WASM failure
 pub struct MarginPreviewAdapter {
+    /// Legacy feature flag (Phase 12 interface)
     feature_flag: WasmFeatureFlag,
+    /// Execution mode (Phase 13 interface, takes precedence when set)
+    mode: Option<WasmExecutionMode>,
 }
 
 impl MarginPreviewAdapter {
-    /// Create a new adapter with the given feature flag.
+    /// Create a new adapter with the given feature flag (Phase 12 interface).
+    ///
+    /// Preserved for backward compatibility. For new code, prefer `with_mode`.
     pub fn new(feature_flag: WasmFeatureFlag) -> Self {
-        Self { feature_flag }
+        Self {
+            feature_flag,
+            mode: None,
+        }
+    }
+
+    /// Create a new adapter with an explicit execution mode (Phase 13 interface).
+    ///
+    /// The mode determines which execution path is attempted first.
+    /// Fallback to native is always available.
+    pub fn with_mode(mode: WasmExecutionMode) -> Self {
+        Self {
+            feature_flag: WasmFeatureFlag::Disabled, // unused when mode is set
+            mode: Some(mode),
+        }
     }
 
     /// Compute a margin preview using the configured execution path.
     ///
-    /// If WASM is enabled, tries the boundary path first. On any failure
-    /// (computation error, validation error), falls back to native.
+    /// If using Phase 13 `WasmExecutionMode`, dispatches accordingly.
+    /// Otherwise falls back to Phase 12 `WasmFeatureFlag` behavior.
     ///
-    /// If WASM is disabled, goes directly to native computation.
+    /// Regardless of mode, fallback to native is always safe.
     ///
     /// Returns a validated `MarginPreviewOutput`.
     pub fn compute(
         &self,
         input: &MarginPreviewInput,
     ) -> Result<MarginPreviewOutput, AdapterError> {
+        // Phase 13 mode takes precedence
+        if let Some(ref mode) = self.mode {
+            return self.compute_with_mode(mode, input);
+        }
+
+        // Phase 12 fallback
         match self.feature_flag {
             WasmFeatureFlag::Enabled => {
                 // Try WASM boundary path first
@@ -232,6 +319,77 @@ impl MarginPreviewAdapter {
                 }
             }
             WasmFeatureFlag::Disabled => self.compute_native(input),
+        }
+    }
+
+    /// Dispatch based on `WasmExecutionMode`.
+    fn compute_with_mode(
+        &self,
+        mode: &WasmExecutionMode,
+        input: &MarginPreviewInput,
+    ) -> Result<MarginPreviewOutput, AdapterError> {
+        match mode {
+            WasmExecutionMode::Native => self.compute_native(input),
+            WasmExecutionMode::Boundary => self.compute_boundary_with_fallback(input),
+            #[cfg(feature = "wasm-host")]
+            WasmExecutionMode::WasmRuntime(runtime) => {
+                self.compute_wasm_runtime_with_fallback(runtime, input)
+            }
+        }
+    }
+
+    /// Compute via boundary path with validation and native fallback.
+    fn compute_boundary_with_fallback(
+        &self,
+        input: &MarginPreviewInput,
+    ) -> Result<MarginPreviewOutput, AdapterError> {
+        match self.compute_via_boundary(input) {
+            Ok(output) => match validate_output(&output) {
+                Ok(()) => Ok(output),
+                Err(_) => self.compute_native(input),
+            },
+            Err(_) => self.compute_native(input),
+        }
+    }
+
+    /// Compute via actual WASM runtime with validation and native fallback.
+    #[cfg(feature = "wasm-host")]
+    fn compute_wasm_runtime_with_fallback(
+        &self,
+        runtime: &WasmRuntime,
+        input: &MarginPreviewInput,
+    ) -> Result<MarginPreviewOutput, AdapterError> {
+        // Serialize input
+        let input_json = match serde_json::to_string(input) {
+            Ok(json) => json,
+            Err(e) => return Err(AdapterError::InputError(format!("Serialization: {e}"))),
+        };
+
+        // Execute via WASM runtime
+        match runtime.margin_preview(&input_json) {
+            Ok(output_json) => {
+                // Deserialize output
+                match serde_json::from_str::<MarginPreviewOutput>(&output_json) {
+                    Ok(output) => {
+                        // Validate
+                        match validate_output(&output) {
+                            Ok(()) => Ok(output),
+                            Err(_) => {
+                                // Validation failed — fall back to native
+                                self.compute_native(input)
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Deserialization failed — fall back to native
+                        self.compute_native(input)
+                    }
+                }
+            }
+            Err(_) => {
+                // WASM runtime execution failed — fall back to native
+                self.compute_native(input)
+            }
         }
     }
 
