@@ -45,7 +45,7 @@ hex = "0.4"
 thiserror = "1.0"
 
 # WASM host runtime (optional — only for host-side WASM execution)
-wasmtime = { version = "43", optional = true, default-features = false, features = ["cranelift", "runtime"] }
+wasmtime = { version = "40", optional = true, default-features = false, features = ["cranelift", "runtime"] }
 
 [dev-dependencies]
 rand = "0.8"
