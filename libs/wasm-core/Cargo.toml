@@ -14,6 +14,9 @@ default = []
 # Enable WASM-specific bindings and adapter code.
 # This feature is a marker — actual wasm32 compilation is controlled by --target.
 wasm = []
+# Enable host-side WASM runtime execution via wasmtime.
+# This is for the HOST that runs .wasm modules, not for code compiled to WASM.
+wasm-host = ["dep:wasmtime"]
 
 [dependencies]
 # Internal types (frozen)
@@ -40,6 +43,9 @@ hex = "0.4"
 
 # Error handling
 thiserror = "1.0"
+
+# WASM host runtime (optional — only for host-side WASM execution)
+wasmtime = { version = "43", optional = true, default-features = false, features = ["cranelift", "runtime"] }
 
 [dev-dependencies]
 rand = "0.8"
