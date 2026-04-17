@@ -63,5 +63,13 @@ mod wasm_tests;
 #[cfg(test)]
 mod wasm_host_tests;
 
+// WASM verification tests (Phase 14)
+#[cfg(test)]
+mod wasm_verification_tests;
+
+// WASM benchmark tests (Phase 14)
+#[cfg(test)]
+mod wasm_benchmark_tests;
+
 /// Crate version constant
 pub const WASM_CORE_VERSION: &str = "1.0.0";
