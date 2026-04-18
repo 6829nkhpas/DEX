@@ -1,14 +1,25 @@
-// apps/web-ui/src/components/DebugPanel.tsx
+// ---------------------------------------------------------------------------
+// DebugPanel — developer diagnostic overlay
+// ---------------------------------------------------------------------------
+// Phase 15: added WASM status, auth session, wallet connection sections.
+// ---------------------------------------------------------------------------
+
 import React, { useMemo, useState } from "react";
 import { useDexStore } from "../state/StoreProvider";
+import { useAuth } from "../auth/AuthProvider";
+import { useWallet } from "../wallet/WalletProvider";
 import { Terminal, X } from "lucide-react";
+import { StatusIndicator } from "./ui/StatusIndicator";
+import type { StatusType } from "./ui/StatusIndicator";
 
 export function DebugPanel() {
     const { state, connectionStatus } = useDexStore();
+    const { authStatus, session } = useAuth();
+    const { address, accountId, isReconnecting } = useWallet();
     const { metrics } = state;
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // We can infer current symbol from the first active orderbook or ticker
+    // Infer current symbol from first active orderbook
     const currentSymbol = useMemo(() => {
         if (state.orderbooks.size > 0) {
             return Array.from(state.orderbooks.keys())[0];
@@ -24,6 +35,8 @@ export function DebugPanel() {
         return "0";
     }, [state.orderbooks, currentSymbol]);
 
+    const wsStatus: StatusType = connectionStatus === "connected" ? "connected" : connectionStatus === "error" ? "error" : "loading";
+
     if (!isExpanded) {
         return (
             <button
@@ -37,9 +50,9 @@ export function DebugPanel() {
     }
 
     return (
-        <div className="fixed bottom-6 right-6 w-96 bg-gray-900 border border-gray-700 text-xs text-green-400 p-4 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.5)] font-mono flex flex-col gap-4 z-50 animate-fade-in glass-panel-heavy">
-            <div className="flex items-center justify-between border-b border-gray-700 pb-2 mb-1">
-                <div className="flex items-center gap-2 text-white font-bold uppercase tracking-wider">
+        <div className="fixed bottom-6 right-6 w-96 bg-gray-900 border border-gray-700 text-xs text-green-400 p-4 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.5)] font-mono flex flex-col gap-3 z-50 animate-fade-in glass-panel-heavy max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                <div className="flex items-center gap-2 text-white font-bold uppercase tracking-wider text-[10px]">
                     <Terminal className="w-4 h-4 text-indigo-400" />
                     Debug Panel
                 </div>
@@ -51,59 +64,104 @@ export function DebugPanel() {
                 </button>
             </div>
 
-            <div>
-                <h3 className="text-white font-bold mb-2 uppercase text-[10px] tracking-widest opacity-60">Connection</h3>
-                <div className="flex justify-between">
-                    <span>Status:</span>
-                    <span className={connectionStatus === "connected" ? "text-green-500" : connectionStatus === "error" ? "text-red-500" : "text-yellow-500"}>
-                        {connectionStatus.toUpperCase()}
+            {/* Connection status */}
+            <DebugSection title="Connection">
+                <DebugRow label="WebSocket">
+                    <StatusIndicator status={wsStatus} label={connectionStatus.toUpperCase()} size="sm" />
+                </DebugRow>
+            </DebugSection>
+
+            {/* Wallet / Auth */}
+            <DebugSection title="Wallet & Auth">
+                <DebugRow label="Wallet">
+                    <span className="text-slate-300 font-mono">
+                        {address ? `${address.slice(0, 8)}…${address.slice(-4)}` : "Not connected"}
                     </span>
-                </div>
-            </div>
+                </DebugRow>
+                <DebugRow label="Account ID">
+                    <span className="text-slate-300 font-mono">
+                        {accountId ? `${accountId.slice(0, 12)}…` : "—"}
+                    </span>
+                </DebugRow>
+                <DebugRow label="Auth Status">
+                    <StatusIndicator
+                        status={authStatus === "authenticated" ? "connected" : authStatus === "signing" ? "loading" : authStatus === "expired" || authStatus === "rejected" ? "error" : authStatus === "connected" ? "warning" : "disconnected"}
+                        label={authStatus.toUpperCase()}
+                        size="sm"
+                    />
+                </DebugRow>
+                {isReconnecting && (
+                    <DebugRow label="Reconnecting">
+                        <StatusIndicator status="loading" label="YES" pulse size="sm" />
+                    </DebugRow>
+                )}
+                {session && (
+                    <DebugRow label="Session Issued">
+                        <span className="text-slate-400">{session.issuedAt}</span>
+                    </DebugRow>
+                )}
+            </DebugSection>
 
-            <div>
-                <h3 className="text-white font-bold mb-2 uppercase text-[10px] tracking-widest opacity-60">Stream Context</h3>
-                <div className="flex flex-col gap-1">
-                    <div className="flex justify-between">
-                        <span>Current Symbol:</span>
-                        <span className="text-white">{currentSymbol}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Last Sequence:</span>
-                        <span className="text-blue-400">{lastSequence}</span>
-                    </div>
-                </div>
-            </div>
+            {/* WASM Status */}
+            <DebugSection title="WASM Compute">
+                <DebugRow label="Execution Path">
+                    <span className="status-badge status-badge-neutral">Native (server-side)</span>
+                </DebugRow>
+                <DebugRow label="WASM Available">
+                    <span className="text-slate-400">Not loaded</span>
+                </DebugRow>
+            </DebugSection>
 
-            <div>
-                <h3 className="text-white font-bold mb-2 uppercase text-[10px] tracking-widest opacity-60">Store Metrics</h3>
-                <div className="flex flex-col gap-1">
-                    <div className="flex justify-between">
-                        <span>Ignored (Dupes):</span>
-                        <span>{metrics.events_ignored}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Gaps Detected:</span>
-                        <span className={metrics.gaps_detected > 0 ? "text-red-500 text-glow-sell" : ""}>{metrics.gaps_detected}</span>
-                    </div>
-                </div>
-            </div>
+            {/* Stream Context */}
+            <DebugSection title="Stream Context">
+                <DebugRow label="Current Symbol">
+                    <span className="text-white">{currentSymbol}</span>
+                </DebugRow>
+                <DebugRow label="Last Sequence">
+                    <span className="text-blue-400">{lastSequence}</span>
+                </DebugRow>
+            </DebugSection>
 
-            <div>
-                <h3 className="text-white font-bold mb-2 uppercase text-[10px] tracking-widest opacity-60">Delta Buffers</h3>
-                <div className="flex flex-col gap-1">
-                    {Array.from(metrics.buffer_size_by_stream.entries()).length === 0 ? (
-                        <span className="text-gray-500 italic">No buffered items</span>
-                    ) : (
-                        Array.from(metrics.buffer_size_by_stream.entries()).map(([stream, size]) => (
-                            <div key={stream} className="flex justify-between">
-                                <span className="truncate pr-2 text-slate-400">{stream}:</span>
-                                <span className="text-white">{size}</span>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+            {/* Store Metrics */}
+            <DebugSection title="Store Metrics">
+                <DebugRow label="Ignored (Dupes)">
+                    <span>{metrics.events_ignored}</span>
+                </DebugRow>
+                <DebugRow label="Gaps Detected">
+                    <span className={metrics.gaps_detected > 0 ? "text-red-500 text-glow-sell" : ""}>
+                        {metrics.gaps_detected}
+                    </span>
+                </DebugRow>
+            </DebugSection>
+
+            {/* Delta Buffers */}
+            <DebugSection title="Delta Buffers">
+                {Array.from(metrics.buffer_size_by_stream.entries()).length === 0 ? (
+                    <span className="text-gray-500 italic text-[10px]">No buffered items</span>
+                ) : (
+                    Array.from(metrics.buffer_size_by_stream.entries()).map(([stream, size]) => (
+                        <DebugRow key={stream} label={stream}>
+                            <span className="text-white">{size}</span>
+                        </DebugRow>
+                    ))
+                )}
+            </DebugSection>
         </div>
     );
 }
+
+// ---- Helper components -------------------------------------------------------
+
+const DebugSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+    <div>
+        <h3 className="text-white font-bold mb-1.5 uppercase text-[10px] tracking-widest opacity-60">{title}</h3>
+        <div className="flex flex-col gap-1">{children}</div>
+    </div>
+);
+
+const DebugRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="flex justify-between items-center">
+        <span className="text-slate-400">{label}:</span>
+        {children}
+    </div>
+);
