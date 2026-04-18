@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Route, Switch, Link } from "wouter";
+import { Route, Switch, Link, useLocation } from "wouter";
 import { DebugPanel } from "./components/DebugPanel";
 import { AuthStatusBadge } from "./components/AuthStatusBadge";
 import { ConnectionBanner } from "./components/ConnectionBanner";
@@ -133,6 +133,28 @@ function MockEventSimulation() {
     return null;
 }
 
+// Navigation link with active state
+const NavLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => {
+    const [location] = useLocation();
+    const isActive = href === "/" ? location === "/" : location.startsWith(href);
+
+    return (
+        <Link
+            href={href}
+            className={`text-sm font-semibold tracking-wide transition-all relative py-1 ${
+                isActive
+                    ? "text-white"
+                    : "text-slate-400 hover:text-white"
+            }`}
+        >
+            {children}
+            {isActive && (
+                <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+            )}
+        </Link>
+    );
+};
+
 // Placeholder pages
 const NotFound = () => (
     <div className="p-8 text-center animate-fade-in mt-12">
@@ -161,17 +183,16 @@ export function App() {
                             </div>
                         </div>
                         <nav className="flex gap-8">
-                            <Link href="/" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                                Markets
-                            </Link>
-                            <Link href="/trade" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                                Trade
-                            </Link>
-                            <Link href="/risk" className="text-sm font-semibold tracking-wide text-slate-400 hover:text-white transition-colors">
-                                Risk
-                            </Link>
+                            <NavLink href="/">Markets</NavLink>
+                            <NavLink href="/trade">Trade</NavLink>
+                            <NavLink href="/risk">Risk</NavLink>
                         </nav>
-                        <div className="ml-auto">
+
+                        {/* WASM status badge */}
+                        <div className="ml-auto flex items-center gap-3">
+                            <span className="status-badge status-badge-neutral text-[10px]">
+                                Native
+                            </span>
                             <AuthStatusBadge />
                         </div>
                     </header>
