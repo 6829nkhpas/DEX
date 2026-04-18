@@ -2,11 +2,8 @@
 // OpenOrders — live open orders table with per-row cancel button
 // ---------------------------------------------------------------------------
 //
-// Reads account.orders from the store, filters to PENDING / PARTIAL,
-// and provides a cancel button that calls DELETE /v1/orders/:id.
-//
-// IMPORTANT: No optimistic removal — the order stays visible until a WS
-// account delta arrives with status CANCELED (or FILLED).
+// Phase 15: improved cancel affordance, consistent empty state, status badges,
+//           data-table styling, and better error toast.
 // ---------------------------------------------------------------------------
 
 import React, { useState, useCallback, useRef } from "react";
@@ -15,6 +12,8 @@ import { ApiError } from "../../api/types";
 import { useDexStore } from "../../state/StoreProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Order } from "../../../../../types/generated-types";
+import { EmptyState } from "../ui/EmptyState";
+import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -131,87 +130,81 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
     // ---- Render -------------------------------------------------------------
 
     return (
-        <div id="open-orders" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
-            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-center gap-2">
-                Open Orders
-                {activeOrders.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-semibold">
-                        {activeOrders.length}
-                    </span>
-                )}
-            </h3>
+        <div id="open-orders" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20" style={{ gridArea: "orders" }}>
+            <div className="flex items-center justify-between">
+                <span className="panel-header">
+                    Open Orders
+                    {activeOrders.length > 0 && (
+                        <span className="panel-count">{activeOrders.length}</span>
+                    )}
+                </span>
+            </div>
 
             {/* Error toast */}
             {errorToast && (
-                <div id="cancel-error" className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm animate-fade-in flex items-center gap-2 mb-2">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <div id="cancel-error" className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm animate-fade-in flex items-center gap-2">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
                     {errorToast}
                 </div>
             )}
 
             {!account ? (
-                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10 flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
-                    Waiting for account data…
-                </div>
+                <LoadingSkeleton variant="row" count={3} className="rounded-xl border border-indigo-500/10 bg-slate-900/40" />
             ) : activeOrders.length === 0 ? (
-                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10">
-                    No open orders.
-                </div>
+                <EmptyState message="No open orders" icon="empty" />
             ) : (
                 <div className="overflow-x-auto custom-scrollbar rounded-xl border border-indigo-500/10 bg-slate-900/40">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase tracking-wider">
+                    <table className="data-table">
+                        <thead>
                             <tr>
-                                <th className="px-5 py-3 font-semibold">Order ID</th>
-                                <th className="px-5 py-3 font-semibold">Symbol</th>
-                                <th className="px-5 py-3 font-semibold">Side</th>
-                                <th className="px-5 py-3 font-semibold">Price</th>
-                                <th className="px-5 py-3 font-semibold">Qty</th>
-                                <th className="px-5 py-3 font-semibold">Remaining</th>
-                                <th className="px-5 py-3 font-semibold">Status</th>
-                                <th className="px-5 py-3 font-semibold text-right">Action</th>
+                                <th>Order ID</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Price</th>
+                                <th>Qty</th>
+                                <th>Remaining</th>
+                                <th>Status</th>
+                                <th className="text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-indigo-500/10">
+                        <tbody>
                             {activeOrders.map((order) => {
                                 const isPending = cancelState.pending[order.order_id] ?? false;
                                 return (
-                                    <tr
-                                        key={order.order_id}
-                                        className="hover:bg-indigo-500/5 transition-colors group"
-                                    >
-                                        <td className="px-5 py-3 font-mono text-slate-400">
+                                    <tr key={order.order_id} className="group">
+                                        <td className="font-mono text-slate-400">
                                             <span title={order.order_id}>
                                                 {order.order_id.length > 12
                                                     ? `${order.order_id.slice(0, 8)}…`
                                                     : order.order_id}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 font-bold text-white tracking-wide">
+                                        <td className="font-bold text-white tracking-wide">
                                             {order.symbol}
                                         </td>
-                                        <td className={`px-5 py-3 font-bold ${order.side === "BUY" ? "text-emerald-400" : "text-rose-400"}`}>
+                                        <td className={`font-bold ${order.side === "BUY" ? "text-emerald-400" : "text-rose-400"}`}>
                                             {order.side}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                        <td className="font-mono text-slate-300 tabular-nums">
                                             {order.price}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                        <td className="font-mono text-slate-300 tabular-nums">
                                             {order.quantity}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                        <td className="font-mono text-slate-300 tabular-nums">
                                             {order.remaining_quantity}
                                         </td>
-                                        <td className="px-5 py-3">
-                                            <span className={`px-2 py-1 rounded border text-xs font-semibold ${order.status.state === "PARTIAL" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "bg-blue-500/10 border-blue-500/20 text-blue-400"}`}>
+                                        <td>
+                                            <span className={`status-badge ${order.status.state === "PARTIAL" ? "status-badge-warning" : "status-badge-info"}`}>
                                                 {order.status.state}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 text-right">
+                                        <td className="text-right">
                                             {!isAuthenticated ? (
                                                 <span
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold border bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed"
+                                                    className="btn-action btn-action-ghost text-xs opacity-50 cursor-not-allowed py-1 px-2.5"
                                                     title="Sign in to cancel orders"
                                                 >
                                                     CANCEL
@@ -221,9 +214,17 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
                                                     id={`cancel-${order.order_id}`}
                                                     disabled={isPending}
                                                     onClick={() => handleCancel(order.order_id)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isPending ? "bg-slate-800 border-slate-700 text-slate-400 cursor-not-allowed" : "bg-rose-500/20 border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 shadow-sm"}`}
+                                                    className={`btn-action text-xs py-1 px-2.5 ${isPending ? "btn-action-ghost cursor-not-allowed" : "btn-action-danger"}`}
                                                 >
-                                                    {isPending ? "CANCELLING…" : "CANCEL"}
+                                                    {isPending ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                            </svg>
+                                                            Cancelling…
+                                                        </span>
+                                                    ) : "CANCEL"}
                                                 </button>
                                             )}
                                         </td>
