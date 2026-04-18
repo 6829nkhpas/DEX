@@ -1,21 +1,19 @@
 // ---------------------------------------------------------------------------
 // AccountPanel — live balance display with deposit / withdraw stubs
 // ---------------------------------------------------------------------------
-//
-// Reads account state from the store and displays:
-//   - per-asset balances
-//   - approximate total portfolio value (optional/stub)
-//   - deposit / withdraw buttons that open modal stubs
-//
-// Balances update reactively from WS account snapshot/delta events.
+// Phase 15: redesigned with glass-panel, loading skeleton, consistent table,
+//           improved auth status indicator, and better disabled states.
 // ---------------------------------------------------------------------------
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { useDexStore } from "../../state/StoreProvider";
 import { useWallet } from "../../wallet/WalletProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
+import { StatusIndicator } from "../ui/StatusIndicator";
+import { LoadingSkeleton } from "../ui/LoadingSkeleton";
+import { EmptyState } from "../ui/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -33,8 +31,8 @@ export const AccountPanel: React.FC = () => {
 
   if (!address) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded p-4 text-gray-500 text-sm">
-        Connect a wallet to view account balances.
+      <div className="glass-panel rounded-2xl p-5 border-t border-indigo-500/20" style={{ gridArea: "account" }}>
+        <EmptyState icon="wallet" message="Connect a wallet to view balances" />
       </div>
     );
   }
@@ -43,58 +41,60 @@ export const AccountPanel: React.FC = () => {
   const assets = Object.keys(balances).sort();
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wide">
-          Account
-        </h2>
+    <div className="glass-panel rounded-2xl p-5 border-t border-indigo-500/20 flex flex-col gap-3" style={{ gridArea: "account" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <span className="panel-header">Account</span>
         <span
-          className="text-xs text-gray-500 font-mono truncate max-w-[180px]"
+          className="text-[10px] text-slate-500 font-mono truncate max-w-[140px]"
           title={accountId ?? ""}
         >
           {accountId ? `${accountId.slice(0, 8)}…` : "—"}
         </span>
       </div>
-      {/* Auth status indicator */}
-      <div className="flex items-center gap-1.5 mb-3">
-        <div className={`w-1.5 h-1.5 rounded-full ${isAuthenticated ? "bg-green-500" : "bg-amber-400"}`} />
-        <span className={`text-xs font-medium ${isAuthenticated ? "text-green-400" : "text-amber-400"}`}>
-          {isAuthenticated ? "Authenticated" : "Sign in to trade"}
-        </span>
+
+      {/* Auth status */}
+      <div className="flex items-center gap-1.5">
+        <StatusIndicator
+          status={isAuthenticated ? "connected" : "warning"}
+          label={isAuthenticated ? "Authenticated" : "Sign in to trade"}
+          size="sm"
+        />
       </div>
 
       {/* Balance table */}
-      {assets.length === 0 ? (
-        <p className="text-xs text-gray-500 mb-3">No balances yet.</p>
+      {!account ? (
+        <LoadingSkeleton variant="card" />
+      ) : assets.length === 0 ? (
+        <EmptyState message="No balances yet" icon="empty" />
       ) : (
-        <table className="w-full text-xs mb-3">
-          <thead>
-            <tr className="text-gray-500 border-b border-gray-800">
-              <th className="text-left py-1">Asset</th>
-              <th className="text-right py-1">Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assets.map((asset) => (
-              <tr
-                key={asset}
-                className="border-b border-gray-800/50 hover:bg-gray-800/30"
-              >
-                <td className="py-1 font-mono text-white">{asset}</td>
-                <td className="py-1 text-right font-mono text-gray-300">
-                  {balances[asset]}
-                </td>
+        <div className="overflow-hidden rounded-lg border border-indigo-500/10 bg-slate-900/40">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th className="text-left">Asset</th>
+                <th className="text-right">Balance</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {assets.map((asset) => (
+                <tr key={asset}>
+                  <td className="font-mono text-white font-semibold text-xs">{asset}</td>
+                  <td className="text-right font-mono text-slate-300 tabular-nums text-xs">
+                    {balances[asset]}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-1">
         <button
           onClick={() => setShowDeposit(true)}
-          className="flex-1 py-1.5 text-xs font-medium bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+          className="btn-action btn-action-buy flex-1 py-2 text-xs"
         >
           Deposit
         </button>
@@ -102,10 +102,7 @@ export const AccountPanel: React.FC = () => {
           onClick={() => isAuthenticated && setShowWithdraw(true)}
           disabled={!isAuthenticated}
           title={!isAuthenticated ? "Sign in to withdraw" : undefined}
-          className={`flex-1 py-1.5 text-xs font-medium text-white rounded transition-colors ${isAuthenticated
-              ? "bg-red-700 hover:bg-red-600"
-              : "bg-slate-700 cursor-not-allowed opacity-60"
-            }`}
+          className="btn-action btn-action-danger flex-1 py-2 text-xs"
         >
           Withdraw
         </button>
