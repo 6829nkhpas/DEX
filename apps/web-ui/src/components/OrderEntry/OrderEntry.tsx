@@ -2,6 +2,10 @@
 // OrderEntry — order submission form with validation, REST integration,
 //              local submitted-orders tracking, and rate-limit handling
 // ---------------------------------------------------------------------------
+// Phase 15: improved BUY/SELL segmented toggle, submit button feedback,
+//           auth gate with connect CTA, form field validation styling,
+//           and consistent glass-panel design.
+// ---------------------------------------------------------------------------
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import Decimal from "decimal.js";
@@ -11,6 +15,8 @@ import type { CreateOrderRequest, OrderResponse } from "../../api/types";
 import type { Side, TimeInForce } from "../../../../../types/generated-types";
 import { useDexStore } from "../../state/StoreProvider";
 import { useAuth } from "../../auth/AuthProvider";
+import { useWallet } from "../../wallet/WalletProvider";
+import { EmptyState } from "../ui/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Validation helpers  (exported for unit tests)
@@ -151,7 +157,8 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
     token: tokenProp,
 }) => {
     // ---- auth state --------------------------------------------------------
-    const { authStatus, session } = useAuth();
+    const { authStatus, session, signIn } = useAuth();
+    const { connect, address } = useWallet();
     const isAuthenticated = authStatus === "authenticated";
     // Use session credentials when authenticated, fall back to props for tests
     const accountId = session?.accountId ?? accountIdProp ?? "dev-account";
@@ -166,6 +173,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
 
     // ---- submission state ---------------------------------------------------
     const [submitting, setSubmitting] = useState(false);
+    const [submitState, setSubmitState] = useState<"idle" | "success" | "error">("idle");
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
@@ -198,6 +206,14 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
         return unsub;
     }, [store]);
 
+    // ---- Clear submit state feedback after delay
+    useEffect(() => {
+        if (submitState !== "idle") {
+            const timer = setTimeout(() => setSubmitState("idle"), 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [submitState]);
+
     // ---- handlers ----------------------------------------------------------
 
     const handleReset = useCallback(() => {
@@ -210,6 +226,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
         setErrors({});
         setSubmitError(null);
         setSubmitSuccess(null);
+        setSubmitState("idle");
     }, []);
 
     const handleSubmit = useCallback(
@@ -240,6 +257,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
             setSubmitError(null);
             setSubmitSuccess(null);
             setSubmitting(true);
+            setSubmitState("idle");
 
             try {
                 const req = buildCreateOrderRequest({
@@ -259,6 +277,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                 setSubmitSuccess(
                     `Order submitted (${resp.order_id}) — status: ${resp.status}`,
                 );
+                setSubmitState("success");
 
                 // Track locally
                 setSubmittedOrders((prev) => [
@@ -266,6 +285,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                     ...prev,
                 ]);
             } catch (err: unknown) {
+                setSubmitState("error");
                 if (err instanceof ApiError) {
                     if (err.status === 429) {
                         setRateLimited(true);
@@ -293,63 +313,81 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
     // ---- render ------------------------------------------------------------
 
     const isSubmitDisabled = submitting || rateLimited || !isAuthenticated;
+    const isBuy = side === "BUY";
 
     // ---- auth gate ---------------------------------------------------------
     if (!isAuthenticated) {
         return (
-            <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[320px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+            <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[300px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20" style={{ gridArea: "entry" }}>
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-                <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-baseline gap-2">
+                <h3 className="panel-header">
                     New Order
-                    <span className="text-slate-500 font-sans font-normal text-sm">— {symbol}</span>
+                    <span className="text-slate-500 font-sans font-normal text-sm ml-1">— {symbol}</span>
                 </h3>
-                <div className="flex items-center gap-3 px-4 py-5 rounded-xl bg-slate-900/60 border border-amber-500/20 text-amber-400 text-sm font-medium">
-                    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Sign in to place orders
-                </div>
+                <EmptyState
+                    icon="lock"
+                    message={!address ? "Connect wallet to place orders" : "Sign in to place orders"}
+                    action={
+                        !address
+                            ? { label: "Connect Wallet", onClick: () => connect().catch(() => { }) }
+                            : authStatus !== "signing"
+                                ? { label: "Sign In", onClick: () => signIn().catch(() => { }) }
+                                : undefined
+                    }
+                />
             </div>
         );
     }
 
     return (
-        <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[320px] flex flex-col gap-5 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
+        <div id="order-entry" className="glass-panel p-6 rounded-2xl min-w-[300px] flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20" style={{ gridArea: "entry" }}>
             {/* Background subtle glow */}
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-baseline gap-2">
+            <h3 className="panel-header">
                 New Order
-                <span className="text-slate-500 font-sans font-normal text-sm">— {symbol}</span>
+                <span className="text-slate-500 font-sans font-normal text-sm ml-1">— {symbol}</span>
             </h3>
 
             <form onSubmit={handleSubmit} id="order-entry-form" className="flex flex-col gap-3 relative z-10">
-                <div className="grid grid-cols-2 gap-3">
-                    <FieldRow label="Side" error={errors.side}>
-                        <select
-                            id="order-side"
-                            value={side}
-                            onChange={(e) => setSide(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-semibold"
-                        >
-                            <option value="BUY">BUY</option>
-                            <option value="SELL">SELL</option>
-                        </select>
-                    </FieldRow>
-
-                    <FieldRow label="Type" error={errors.order_type}>
-                        <select
-                            id="order-type"
-                            value={orderType}
-                            onChange={(e) => setOrderType(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-semibold"
-                        >
-                            <option value="LIMIT">LIMIT</option>
-                            <option value="MARKET">MARKET</option>
-                        </select>
-                    </FieldRow>
+                {/* BUY / SELL segmented toggle */}
+                <div className="grid grid-cols-2 gap-0 rounded-xl overflow-hidden border border-indigo-500/20">
+                    <button
+                        type="button"
+                        id="order-side-buy"
+                        onClick={() => setSide("BUY")}
+                        className={`py-2.5 text-sm font-bold tracking-wide transition-all ${isBuy
+                            ? "bg-gradient-to-r from-emerald-500/90 to-emerald-400/90 text-white shadow-lg"
+                            : "bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800/60"
+                            }`}
+                    >
+                        BUY
+                    </button>
+                    <button
+                        type="button"
+                        id="order-side-sell"
+                        onClick={() => setSide("SELL")}
+                        className={`py-2.5 text-sm font-bold tracking-wide transition-all ${!isBuy
+                            ? "bg-gradient-to-r from-rose-500/90 to-rose-400/90 text-white shadow-lg"
+                            : "bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800/60"
+                            }`}
+                    >
+                        SELL
+                    </button>
                 </div>
+
+                {/* Order type */}
+                <FieldRow label="Type" error={errors.order_type}>
+                    <select
+                        id="order-type"
+                        value={orderType}
+                        onChange={(e) => setOrderType(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-semibold"
+                    >
+                        <option value="LIMIT">LIMIT</option>
+                        <option value="MARKET">MARKET</option>
+                    </select>
+                </FieldRow>
 
                 {orderType === "LIMIT" && (
                     <FieldRow label="Price" error={errors.price}>
@@ -361,7 +399,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                                 placeholder="0.00"
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
-                                className="w-full pl-3 pr-12 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-slate-600 shadow-inner"
+                                className={`w-full pl-3 pr-12 py-2 bg-slate-900/60 border rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 transition-all font-mono placeholder:text-slate-600 shadow-inner ${errors.price ? "border-rose-500/40 focus:ring-rose-500/50" : "border-indigo-500/20 focus:ring-indigo-500/50"}`}
                             />
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">USDT</div>
                         </div>
@@ -377,7 +415,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                             placeholder="0.00"
                             value={quantity}
                             onChange={(e) => setQuantity(e.target.value)}
-                            className="w-full pl-3 pr-12 py-2 bg-slate-900/60 border border-indigo-500/20 rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono placeholder:text-slate-600 shadow-inner"
+                            className={`w-full pl-3 pr-12 py-2 bg-slate-900/60 border rounded-lg text-slate-200 text-sm focus:outline-none focus:ring-2 transition-all font-mono placeholder:text-slate-600 shadow-inner ${errors.quantity ? "border-rose-500/40 focus:ring-rose-500/50" : "border-indigo-500/20 focus:ring-indigo-500/50"}`}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-bold">{symbol.split('/')[0]}</div>
                     </div>
@@ -412,18 +450,38 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                 </div>
 
                 {/* Buttons */}
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-3 mt-3">
                     <button
                         id="order-submit"
                         type="submit"
                         disabled={isSubmitDisabled}
                         className={`
-                            flex-1 py-3 px-4 rounded-xl font-bold tracking-wide text-sm text-white shadow-lg transition-all
+                            flex-1 py-3 px-4 rounded-xl font-bold tracking-wide text-sm text-white shadow-lg transition-all flex items-center justify-center gap-2
                             ${isSubmitDisabled ? "opacity-50 cursor-not-allowed filter grayscale" : "hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"}
-                            ${side === "BUY" ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-emerald-500/20" : "bg-gradient-to-r from-rose-500 to-rose-400 shadow-rose-500/20"}
+                            ${submitState === "error" ? "animate-shake" : ""}
+                            ${isBuy ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-emerald-500/20" : "bg-gradient-to-r from-rose-500 to-rose-400 shadow-rose-500/20"}
                         `}
                     >
-                        {submitting ? "Submitting…" : rateLimited ? "Rate limited" : `CONFIRM ${side}`}
+                        {submitting ? (
+                            <>
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Submitting…
+                            </>
+                        ) : submitState === "success" ? (
+                            <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Submitted
+                            </>
+                        ) : rateLimited ? (
+                            "Rate limited"
+                        ) : (
+                            `CONFIRM ${side}`
+                        )}
                     </button>
                     <button
                         id="order-reset"
@@ -440,7 +498,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                 {/* Success toast */}
                 {submitSuccess && (
                     <div id="order-success" className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm animate-fade-in flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                         {submitSuccess}
                     </div>
                 )}
@@ -448,7 +506,7 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
                 {/* Error toast */}
                 {submitError && (
                     <div id="order-error" className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-sm animate-fade-in flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
                         {submitError}
                     </div>
                 )}
@@ -456,26 +514,26 @@ export const OrderEntry: React.FC<OrderEntryProps> = ({
 
             {/* Local submitted-orders status panel */}
             {submittedOrders.length > 0 && (
-                <div className="mt-2 relative z-10 animate-fade-in">
+                <div className="mt-1 relative z-10 animate-fade-in">
                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                         Recent Activity
                     </h4>
                     <div className="bg-slate-900/50 rounded-lg border border-indigo-500/10 overflow-hidden">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase">
+                        <table className="data-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-4 py-2 font-medium">Order ID</th>
-                                    <th className="px-4 py-2 font-medium">Status</th>
+                                    <th>Order ID</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-indigo-500/5">
+                            <tbody>
                                 {submittedOrders.slice(0, 5).map((so) => (
-                                    <tr key={so.order_id} className="hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-4 py-2 font-mono text-slate-300">
+                                    <tr key={so.order_id}>
+                                        <td className="font-mono text-slate-300">
                                             {so.order_id.slice(0, 8)}…
                                         </td>
-                                        <td className="px-4 py-2 font-semibold text-xs tracking-wide">
-                                            <span className={so.status === "SYNCED" ? "text-emerald-400" : "text-amber-400"}>
+                                        <td className="font-semibold text-xs tracking-wide">
+                                            <span className={`status-badge ${so.status === "SYNCED" ? "status-badge-success" : "status-badge-warning"}`}>
                                                 {so.status}
                                             </span>
                                         </td>
@@ -505,7 +563,12 @@ const FieldRow: React.FC<{
         </label>
         {children}
         {error && (
-            <span className="text-xs text-rose-400 ml-1 animate-fade-in">{error}</span>
+            <span className="text-xs text-rose-400 ml-1 animate-fade-in flex items-center gap-1">
+                <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
+                </svg>
+                {error}
+            </span>
         )}
     </div>
 );
