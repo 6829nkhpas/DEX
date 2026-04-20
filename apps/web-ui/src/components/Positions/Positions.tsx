@@ -1,20 +1,14 @@
 // ---------------------------------------------------------------------------
 // Positions — read-only position panel with live PnL
 // ---------------------------------------------------------------------------
-//
-// Displays position size, entry price, mark price, unrealised PnL, and
-// liquidation price. PnL is computed using decimal.js for precision:
-//
-//   Long PnL  = (mark − entry) × size
-//   Short PnL = (entry − mark) × |size|   (size is negative for shorts)
-//
-// Mark price is read from the store's ticker state, so PnL updates live
-// whenever a new ticker delta arrives.
+// Phase 15: LONG/SHORT label badges, PnL background tint, liquidation
+//           proximity warning, consistent panel structure, EmptyState.
 // ---------------------------------------------------------------------------
 
 import React, { useMemo } from "react";
 import Decimal from "decimal.js";
 import { useDexStore } from "../../state/StoreProvider";
+import { EmptyState } from "../ui/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,6 +50,30 @@ export function computePnl(
     return mark.minus(entry).times(qty).toFixed();
 }
 
+/**
+ * Compute proximity of mark price to liquidation price as 0..1 (1 = at liq.).
+ * Returns null if no liquidation price or insufficient data.
+ */
+export function liquidationProximity(
+    markPrice: string,
+    entryPrice: string,
+    liquidationPrice: string | undefined,
+): number | null {
+    if (!liquidationPrice) return null;
+    try {
+        const mark = new Decimal(markPrice);
+        const entry = new Decimal(entryPrice);
+        const liq = new Decimal(liquidationPrice);
+        const totalRange = entry.minus(liq).abs();
+        if (totalRange.isZero()) return 1;
+        const currentDist = mark.minus(liq).abs();
+        const proximity = new Decimal(1).minus(currentDist.div(totalRange));
+        return Math.max(0, Math.min(1, proximity.toNumber()));
+    } catch {
+        return null;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -69,67 +87,90 @@ export const Positions: React.FC<PositionsProps> = ({ positions = [] }) => {
             const ticker = state.tickers.get(pos.symbol);
             const markPrice = ticker?.mark_price ?? pos.entry_price; // fallback to entry if no ticker
             const pnl = computePnl(markPrice, pos.entry_price, pos.size);
-            return { ...pos, mark_price: markPrice, pnl };
+            const liqProx = liquidationProximity(markPrice, pos.entry_price, pos.liquidation_price);
+            return { ...pos, mark_price: markPrice, pnl, liqProx };
         });
     }, [positions, state.tickers]);
 
     // ---- Render -------------------------------------------------------------
 
     return (
-        <div id="positions-panel" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20">
-            <h3 className="text-xl font-display font-bold tracking-tight text-white m-0 flex items-center gap-2">
-                Positions
-                {enriched.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-semibold">
-                        {enriched.length}
-                    </span>
-                )}
-            </h3>
+        <div id="positions-panel" className="glass-panel p-6 rounded-2xl w-full flex flex-col gap-4 text-slate-200 shadow-2xl relative overflow-hidden border-t border-indigo-500/20" style={{ gridArea: "positions" }}>
+            <div className="flex items-center justify-between">
+                <span className="panel-header">
+                    Positions
+                    {enriched.length > 0 && (
+                        <span className="panel-count">{enriched.length}</span>
+                    )}
+                </span>
+            </div>
 
             {enriched.length === 0 ? (
-                <div className="text-slate-500 py-8 text-center font-medium bg-slate-900/30 rounded-xl border border-indigo-500/10">
-                    No open positions.
-                </div>
+                <EmptyState message="No open positions" icon="chart" />
             ) : (
                 <div className="overflow-x-auto custom-scrollbar rounded-xl border border-indigo-500/10 bg-slate-900/40">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-800/50 text-xs text-slate-500 uppercase tracking-wider">
+                    <table className="data-table">
+                        <thead>
                             <tr>
-                                <th className="px-5 py-3 font-semibold">Symbol</th>
-                                <th className="px-5 py-3 font-semibold">Size</th>
-                                <th className="px-5 py-3 font-semibold">Entry</th>
-                                <th className="px-5 py-3 font-semibold">Mark</th>
-                                <th className="px-5 py-3 font-semibold">Unrealised PnL</th>
-                                <th className="px-5 py-3 font-semibold">Liq. Price</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Size</th>
+                                <th>Entry</th>
+                                <th>Mark</th>
+                                <th>Unrealised PnL</th>
+                                <th>Liq. Price</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-indigo-500/10">
+                        <tbody>
                             {enriched.map((pos) => {
                                 const pnlNum = parseFloat(pos.pnl);
                                 const isLong = parseFloat(pos.size) > 0;
+                                const pnlBgClass = pnlNum > 0
+                                    ? "bg-emerald-500/5"
+                                    : pnlNum < 0
+                                        ? "bg-rose-500/5"
+                                        : "";
+
+                                // Liquidation warning: amber at >50% proximity, red at >80%
+                                const liqWarning = pos.liqProx !== null
+                                    ? pos.liqProx > 0.8
+                                        ? "text-red-400 font-bold"
+                                        : pos.liqProx > 0.5
+                                            ? "text-amber-400 font-semibold"
+                                            : "text-slate-500"
+                                    : "text-slate-500";
+
                                 return (
-                                    <tr
-                                        key={pos.symbol}
-                                        className="hover:bg-indigo-500/5 transition-colors group cursor-default"
-                                    >
-                                        <td className="px-5 py-3 font-bold text-white tracking-wide">
+                                    <tr key={pos.symbol} className="cursor-default group">
+                                        <td className="font-bold text-white tracking-wide">
                                             {pos.symbol}
                                         </td>
-                                        <td className={`px-5 py-3 font-mono font-bold ${isLong ? "text-[#00E676]" : "text-[#FF1744]"}`}>
+                                        <td>
+                                            <span className={`status-badge ${isLong ? "status-badge-success" : "status-badge-error"}`}>
+                                                {isLong ? "LONG" : "SHORT"}
+                                            </span>
+                                        </td>
+                                        <td className={`font-mono font-bold tabular-nums ${isLong ? "text-[#00E676]" : "text-[#FF1744]"}`}>
                                             {pos.size}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-300">
+                                        <td className="font-mono text-slate-300 tabular-nums">
                                             {pos.entry_price}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-300 group-hover:text-white transition-colors">
+                                        <td className="font-mono text-slate-300 group-hover:text-white transition-colors tabular-nums">
                                             {pos.mark_price}
                                         </td>
-                                        <td className={`px-5 py-3 font-mono font-bold tracking-wide flex items-center gap-1 ${pnlNum > 0 ? "text-[#00E676] text-glow-buy" : pnlNum < 0 ? "text-[#FF1744] text-glow-sell" : "text-slate-500"}`}>
+                                        <td className={`font-mono font-bold tracking-wide tabular-nums ${pnlBgClass} ${pnlNum > 0 ? "text-[#00E676] text-glow-buy" : pnlNum < 0 ? "text-[#FF1744] text-glow-sell" : "text-slate-500"}`}>
                                             {pnlNum > 0 ? "+" : ""}
                                             {pos.pnl}
                                         </td>
-                                        <td className="px-5 py-3 font-mono text-slate-500">
+                                        <td className={`font-mono tabular-nums ${liqWarning}`}>
                                             {pos.liquidation_price ?? "—"}
+                                            {pos.liqProx !== null && pos.liqProx > 0.5 && (
+                                                <svg className="w-3 h-3 inline ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                                </svg>
+                                            )}
                                         </td>
                                     </tr>
                                 );
