@@ -9,7 +9,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { DexApiClient } from "../../api/rest-client";
 import { ApiError } from "../../api/types";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Order } from "../../../../../types/generated-types";
 import { EmptyState } from "../ui/EmptyState";
@@ -68,7 +68,7 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
     const isAuthenticated = authStatus === "authenticated";
     const accountId = session?.accountId ?? accountIdProp ?? "dev-account";
     const token = session?.signature ?? tokenProp ?? "dev-token-123";
-    const { state } = useDexStore();
+    
     const [cancelState, setCancelState] = useState<CancelState>({ pending: {} });
     const [errorToast, setErrorToast] = useState<string | null>(null);
 
@@ -124,7 +124,7 @@ export const OpenOrders: React.FC<OpenOrdersProps> = ({
 
     // ---- Derived data ------------------------------------------------------
 
-    const account = state.account;
+    const account = useAppSelector(state => state.account);
     const activeOrders = account ? filterActiveOrders(account.orders) : [];
 
     // ---- Render -------------------------------------------------------------
