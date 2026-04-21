@@ -7,7 +7,7 @@
 
 import React, { useMemo } from "react";
 import Decimal from "decimal.js";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
 interface OrderbookProps {
@@ -64,8 +64,7 @@ const OrderbookRow = React.memo(({
 });
 
 export const Orderbook: React.FC<OrderbookProps> = React.memo(({ symbol }) => {
-    const { state } = useDexStore();
-    const orderbook = state.orderbooks.get(symbol);
+    const orderbook = useAppSelector(state => state.orderbooks.get(symbol));
 
     const { bidsWithTotal, asksWithTotal, maxDepth, spreadStr, spreadPct } = useMemo(() => {
         if (!orderbook) {
