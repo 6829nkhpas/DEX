@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useState } from "react";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { useWallet } from "../../wallet/WalletProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import { DepositModal } from "./DepositModal";
@@ -20,14 +20,14 @@ import { EmptyState } from "../ui/EmptyState";
 // ---------------------------------------------------------------------------
 
 export const AccountPanel: React.FC = () => {
-  const { state } = useDexStore();
+  
   const { address, accountId } = useWallet();
   const { authStatus } = useAuth();
   const isAuthenticated = authStatus === "authenticated";
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
 
-  const account = state.account;
+  const account = useAppSelector(state => state.account);
 
   if (!address) {
     return (
