@@ -13,7 +13,7 @@ import { DexApiClient } from "../../api/rest-client";
 import { ApiError } from "../../api/types";
 import type { CreateOrderRequest, OrderResponse } from "../../api/types";
 import type { Side, TimeInForce } from "../../../../../types/generated-types";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { useAuth } from "../../auth/AuthProvider";
 import { useWallet } from "../../wallet/WalletProvider";
 import { EmptyState } from "../ui/EmptyState";
