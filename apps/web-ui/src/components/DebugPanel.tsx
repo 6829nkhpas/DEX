@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useMemo, useState } from "react";
-import { useDexStore } from "../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../state/StoreProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { useWallet } from "../wallet/WalletProvider";
 import { Terminal, X } from "lucide-react";
@@ -13,7 +13,8 @@ import { StatusIndicator } from "./ui/StatusIndicator";
 import type { StatusType } from "./ui/StatusIndicator";
 
 export function DebugPanel() {
-    const { state, connectionStatus } = useDexStore();
+    const { connectionStatus } = useDexStore();
+    const state = useAppSelector(state => state);
     const { authStatus, session } = useAuth();
     const { address, accountId, isReconnecting } = useWallet();
     const { metrics } = state;
