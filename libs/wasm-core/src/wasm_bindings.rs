@@ -29,6 +29,7 @@
 //! All outputs are advisory. The Rust core services remain authoritative
 //! for every state transition. WASM results must be validated before display.
 
+use std::borrow::Cow;
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -49,15 +50,17 @@ use types::position::{Position, PositionSide};
 /// All numeric fields are string-encoded decimals. All IDs are string-encoded
 /// UUIDs. This matches the project's canonical wire format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MarginPreviewInput {
+pub struct MarginPreviewInput<'a> {
     /// Account UUID as string
-    pub account_id: String,
+    pub account_id: Cow<'a, str>,
     /// Total account balance in quote currency (decimal string)
-    pub total_balance: String,
+    pub total_balance: Cow<'a, str>,
     /// Existing positions (may be empty)
-    pub positions: Vec<PositionInput>,
+    #[serde(borrow)]
+    pub positions: Vec<PositionInput<'a>>,
     /// The hypothetical order to simulate
-    pub order: OrderInput,
+    #[serde(borrow)]
+    pub order: OrderInput<'a>,
 }
 
 /// A position snapshot passed into WASM.
@@ -65,23 +68,23 @@ pub struct MarginPreviewInput {
 /// Mirrors `types::position::Position` but with all fields as strings
 /// for cross-boundary safety.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PositionInput {
+pub struct PositionInput<'a> {
     /// Trading pair (e.g. "BTC/USDT")
-    pub symbol: String,
+    pub symbol: Cow<'a, str>,
     /// "LONG" or "SHORT"
-    pub side: String,
+    pub side: Cow<'a, str>,
     /// Position size (decimal string)
-    pub size: String,
+    pub size: Cow<'a, str>,
     /// Entry price (decimal string)
-    pub entry_price: String,
+    pub entry_price: Cow<'a, str>,
     /// Current mark price (decimal string)
-    pub mark_price: String,
+    pub mark_price: Cow<'a, str>,
     /// Liquidation price (decimal string)
-    pub liquidation_price: String,
+    pub liquidation_price: Cow<'a, str>,
     /// Initial margin allocated (decimal string)
-    pub initial_margin: String,
+    pub initial_margin: Cow<'a, str>,
     /// Maintenance margin required (decimal string)
-    pub maintenance_margin: String,
+    pub maintenance_margin: Cow<'a, str>,
     /// Leverage tier (1-125)
     pub leverage: u8,
     /// Position open timestamp (Unix nanos)
@@ -90,15 +93,15 @@ pub struct PositionInput {
 
 /// The hypothetical order to simulate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OrderInput {
+pub struct OrderInput<'a> {
     /// Trading pair (e.g. "ETH/USDT")
-    pub symbol: String,
+    pub symbol: Cow<'a, str>,
     /// "BUY" or "SELL"
-    pub side: String,
+    pub side: Cow<'a, str>,
     /// Order price (decimal string)
-    pub price: String,
+    pub price: Cow<'a, str>,
     /// Order quantity (decimal string)
-    pub quantity: String,
+    pub quantity: Cow<'a, str>,
     /// Leverage tier (1-125)
     pub leverage: u8,
 }
@@ -184,7 +187,7 @@ impl WasmError {
 /// - Account ID is not a valid UUID
 pub fn margin_preview_json(input_json: &str) -> Result<String, String> {
     // 1. Deserialize input
-    let input: MarginPreviewInput = serde_json::from_str(input_json)
+    let input: MarginPreviewInput<'_> = serde_json::from_str(input_json)
         .map_err(|e| {
             serde_json::to_string(&WasmError::input_error(format!(
                 "JSON parse error: {e}"
@@ -284,7 +287,7 @@ fn parse_position_input(
     let maintenance_margin = Decimal::from_str(&input.maintenance_margin)
         .map_err(|e| position_field_error(index, "maintenance_margin", &e))?;
 
-    let market_id = types::ids::MarketId::new(&input.symbol);
+    let market_id = types::ids::MarketId::new(&*input.symbol);
 
     Ok(Position::new(
         account_id,
