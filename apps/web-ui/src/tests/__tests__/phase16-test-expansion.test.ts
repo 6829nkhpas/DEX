@@ -234,7 +234,7 @@ function makeTrade(seq: number, overrides: Partial<TradePayload> = {}): BaseEven
             symbol: "BTC/USDT",
             price: "50100.00",
             quantity: "0.5",
-            side: "BUY",
+            side: "BUY" as any,
             ...overrides,
         },
     });
@@ -436,7 +436,7 @@ describe("Phase 16 — Reducer purity and determinism", () => {
                 symbol: "BTC/USDT",
                 price: "50000",
                 quantity: "0.1",
-                side: "BUY" as const,
+                side: "BUY" as any,
                 timestamp: String(i),
             });
         }
@@ -444,7 +444,7 @@ describe("Phase 16 — Reducer purity and determinism", () => {
             event_type: "delta",
             source: "trades",
             sequence: "501",
-            payload: { symbol: "BTC/USDT", price: "50001", quantity: "1.0", side: "SELL" },
+            payload: { symbol: "BTC/USDT", price: "50001", quantity: "1.0", side: "SELL" as any },
         });
         const updated = applyTrade(current, event);
         assert.ok(updated.length <= 500);
@@ -482,7 +482,7 @@ describe("Phase 16 — Reducer purity and determinism", () => {
                     order_id: "ord-1",
                     account_id: "user-A",
                     symbol: "BTC/USDT",
-                    side: "BUY",
+                    side: "BUY" as any,
                     price: "50000",
                     quantity: "0.1",
                     filled_quantity: "0",
@@ -633,7 +633,7 @@ describe("Phase 16 — Store: trade mechanics", () => {
 
     test("trade side is preserved as string", () => {
         const store = new DexStateStore();
-        store.dispatch(makeTrade(1, { side: "SELL" }));
+        store.dispatch(makeTrade(1, { side: "SELL" as any }));
         const trades = store.getTrades("BTC/USDT");
         assert.equal(trades[0].side, "SELL");
     });
@@ -659,7 +659,7 @@ describe("Phase 16 — Store: account delta edge cases", () => {
         store.dispatch(makeAcctDelta(2, {
             order: {
                 order_id: "ord-1", account_id: "user-1", symbol: "BTC/USDT",
-                side: "BUY", price: "50000", quantity: "1.0",
+                side: "BUY" as any, price: "50000", quantity: "1.0",
                 filled_quantity: "0", remaining_quantity: "1.0",
                 status: { state: "PENDING" }, time_in_force: { type: "GTC" },
                 created_at: "1708123456789000000", updated_at: "1708123456789000000",
@@ -672,7 +672,7 @@ describe("Phase 16 — Store: account delta edge cases", () => {
         store.dispatch(makeAcctDelta(3, {
             order: {
                 order_id: "ord-1", account_id: "user-1", symbol: "BTC/USDT",
-                side: "BUY", price: "50000", quantity: "1.0",
+                side: "BUY" as any, price: "50000", quantity: "1.0",
                 filled_quantity: "0.5", remaining_quantity: "0.5",
                 status: { state: "PARTIAL" }, time_in_force: { type: "GTC" },
                 created_at: "1708123456789000000", updated_at: "1708123456790000000",
@@ -686,7 +686,7 @@ describe("Phase 16 — Store: account delta edge cases", () => {
         store.dispatch(makeAcctDelta(4, {
             order: {
                 order_id: "ord-1", account_id: "user-1", symbol: "BTC/USDT",
-                side: "BUY", price: "50000", quantity: "1.0",
+                side: "BUY" as any, price: "50000", quantity: "1.0",
                 filled_quantity: "1.0", remaining_quantity: "0",
                 status: { state: "FILLED" }, time_in_force: { type: "GTC" },
                 created_at: "1708123456789000000", updated_at: "1708123456791000000",
@@ -703,7 +703,7 @@ describe("Phase 16 — Store: account delta edge cases", () => {
         store.dispatch(makeAcctDelta(2, {
             order: {
                 order_id: "ord-A", account_id: "user-1", symbol: "BTC/USDT",
-                side: "BUY", price: "50000", quantity: "1.0",
+                side: "BUY" as any, price: "50000", quantity: "1.0",
                 filled_quantity: "0", remaining_quantity: "1.0",
                 status: { state: "PENDING" }, time_in_force: { type: "GTC" },
                 created_at: "1000", updated_at: "1000", version: 0,
@@ -712,7 +712,7 @@ describe("Phase 16 — Store: account delta edge cases", () => {
         store.dispatch(makeAcctDelta(3, {
             order: {
                 order_id: "ord-B", account_id: "user-1", symbol: "ETH/USDT",
-                side: "SELL", price: "3000", quantity: "10.0",
+                side: "SELL" as any, price: "3000", quantity: "10.0",
                 filled_quantity: "0", remaining_quantity: "10.0",
                 status: { state: "PENDING" }, time_in_force: { type: "IOC" },
                 created_at: "1001", updated_at: "1001", version: 0,
@@ -889,7 +889,7 @@ describe("Phase 16 — Wallet lifecycle", () => {
 
         // Protected action guard
         const authStatus = "disconnected";
-        assert.equal(authStatus === "authenticated", false);
+        assert.equal(authStatus === "authenticated" as any, false);
     });
 
     test("account switch invalidates session and re-derives", () => {
@@ -1146,7 +1146,7 @@ describe("Phase 16 — Risk model: health threshold boundaries", () => {
 
 describe("Phase 16 — Order entry validation: edge cases", () => {
     test("whitespace-only quantity is rejected", () => {
-        const errors = validateOrder({ side: "BUY", order_type: "LIMIT", price: "50000", quantity: "   ", tif: "GTC", gtdDate: "" });
+        const errors = validateOrder({ side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "   ", tif: "GTC", gtdDate: "" });
         assert.ok(errors.quantity);
     });
 
@@ -1170,28 +1170,28 @@ describe("Phase 16 — Order entry validation: edge cases", () => {
     });
 
     test("negative price for LIMIT order is rejected", () => {
-        const errors = validateOrder({ side: "BUY", order_type: "LIMIT", price: "-100", quantity: "1", tif: "GTC", gtdDate: "" });
+        const errors = validateOrder({ side: "BUY" as any, order_type: "LIMIT", price: "-100", quantity: "1", tif: "GTC", gtdDate: "" });
         assert.ok(errors.price);
     });
 
     test("MARKET order skips price validation", () => {
-        const errors = validateOrder({ side: "BUY", order_type: "MARKET", price: "", quantity: "1", tif: "IOC", gtdDate: "" });
+        const errors = validateOrder({ side: "BUY" as any, order_type: "MARKET", price: "", quantity: "1", tif: "IOC", gtdDate: "" });
         assert.equal(errors.price, undefined);
     });
 
     test("GTD with valid date passes", () => {
-        const errors = validateOrder({ side: "BUY", order_type: "LIMIT", price: "50000", quantity: "1", tif: "GTD", gtdDate: "2026-12-31T23:59" });
+        const errors = validateOrder({ side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "1", tif: "GTD", gtdDate: "2026-12-31T23:59" });
         assert.equal(errors.gtd_date, undefined);
     });
 
     test("missing order_type is rejected", () => {
-        const errors = validateOrder({ side: "BUY", order_type: "", price: "50000", quantity: "1", tif: "GTC", gtdDate: "" });
+        const errors = validateOrder({ side: "BUY" as any, order_type: "", price: "50000", quantity: "1", tif: "GTC", gtdDate: "" });
         assert.ok(errors.order_type);
     });
 
     test("buildCreateOrderRequest: MARKET sets price to '0'", () => {
         const req = buildCreateOrderRequest({
-            accountId: "acct", symbol: "BTC/USDT", side: "BUY",
+            accountId: "acct", symbol: "BTC/USDT", side: "BUY" as any,
             order_type: "MARKET", price: "50000", quantity: "1", tif: "IOC", gtdDate: "",
         });
         assert.equal(req.price, "0");
@@ -1199,7 +1199,7 @@ describe("Phase 16 — Order entry validation: edge cases", () => {
 
     test("buildCreateOrderRequest: LIMIT preserves exact price", () => {
         const req = buildCreateOrderRequest({
-            accountId: "acct", symbol: "BTC/USDT", side: "SELL",
+            accountId: "acct", symbol: "BTC/USDT", side: "SELL" as any,
             order_type: "LIMIT", price: "50000.123456", quantity: "0.001", tif: "GTC", gtdDate: "",
         });
         assert.equal(req.price, "50000.123456");
@@ -1208,7 +1208,7 @@ describe("Phase 16 — Order entry validation: edge cases", () => {
 
     test("buildCreateOrderRequest: GTD produces Unix nanos time_in_force", () => {
         const req = buildCreateOrderRequest({
-            accountId: "acct", symbol: "BTC/USDT", side: "BUY",
+            accountId: "acct", symbol: "BTC/USDT", side: "BUY" as any,
             order_type: "LIMIT", price: "50000", quantity: "1", tif: "GTD", gtdDate: "2026-12-31T23:59",
         });
         assert.equal(req.time_in_force.type, "GTD");
