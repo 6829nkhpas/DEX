@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useMemo } from "react";
-import { useDexStore } from "../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../state/StoreProvider";
 import { AccountSummary } from "../components/Risk/AccountSummary";
 import { MarginPositionsPanel } from "../components/Risk/MarginPositionsPanel";
 import { LiquidationSimulator } from "../components/Risk/LiquidationSimulator";
@@ -43,7 +43,9 @@ const DEFAULT_PARAMS: MarginParams = {
 // ---------------------------------------------------------------------------
 
 export const RiskPage: React.FC = () => {
-  const { state } = useDexStore();
+  const { store } = useDexStore();
+  useAppSelector(state => SAMPLE_POSITIONS.map(p => state.tickers.get(p.symbol)?.mark_price).join(","));
+  const state = store.getState();
 
   // Enrich sample positions with live mark prices from store
   const positions: MarginPosition[] = useMemo(() => {
