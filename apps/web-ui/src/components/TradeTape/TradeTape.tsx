@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import React from "react";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { Side } from "../../../../../types/generated-types";
 import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
@@ -15,9 +15,8 @@ interface TradeTapeProps {
 }
 
 export const TradeTape: React.FC<TradeTapeProps> = React.memo(({ symbol }) => {
-    const { store, state } = useDexStore();
-    // Use the optimized getter from the store for trades
-    // Also use state.trades just to trigger re-renders when state changes
+    const { store } = useDexStore();
+    useAppSelector(state => state.trades.get(symbol));
     const trades = store.getTrades(symbol);
 
     return (
