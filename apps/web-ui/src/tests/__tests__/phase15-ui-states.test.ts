@@ -93,7 +93,7 @@ function makeTestOrder(overrides: Partial<TestOrder> = {}): TestOrder {
         order_id: "test-order-001",
         account_id: "test-account",
         symbol: "BTC/USDT",
-        side: "BUY",
+        side: "BUY" as any,
         price: "50000.00",
         quantity: "1.0",
         filled_quantity: "0.0",
@@ -152,14 +152,14 @@ describe("Phase 15 — Auth/Wallet UI States", () => {
 
     it("should truncate wallet address correctly (6…4 pattern)", () => {
         const address = "0x1234567890AbCdeF1234567890AbCdeF12345678";
-        const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
+        const short = `${(address as string).slice(0, 6)}…${(address as string).slice(-4)}`;
         assert.equal(short, "0x1234…5678");
         assert.equal(short.length, 11);
     });
 
     it("should handle null address gracefully", () => {
         const address: string | null = null;
-        const short = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+        const short = address ? `${(address as string).slice(0, 6)}…${(address as string).slice(-4)}` : "";
         assert.equal(short, "");
     });
 });
@@ -173,7 +173,7 @@ describe("Phase 15 — Blocked Action States", () => {
         const authStatus: AuthStatus = "connected";
         const submitting = false;
         const rateLimited = false;
-        const isAuthenticated = authStatus === "authenticated";
+        const isAuthenticated = authStatus === "authenticated" as any;
         const isSubmitDisabled = submitting || rateLimited || !isAuthenticated;
         assert.equal(isSubmitDisabled, true, "Submit should be disabled when not authenticated");
     });
@@ -186,14 +186,14 @@ describe("Phase 15 — Blocked Action States", () => {
     it("should disable order submit when rate limited", () => {
         const authStatus: AuthStatus = "authenticated";
         const rateLimited = true;
-        const isAuthenticated = authStatus === "authenticated";
+        const isAuthenticated = authStatus === "authenticated" as any;
         const isSubmitDisabled = false || rateLimited || !isAuthenticated;
         assert.equal(isSubmitDisabled, true);
     });
 
     it("should enable order submit when authenticated and not rate-limited", () => {
         const authStatus: AuthStatus = "authenticated";
-        const isAuthenticated = authStatus === "authenticated";
+        const isAuthenticated = authStatus === "authenticated" as any;
         const isSubmitDisabled = false || false || !isAuthenticated;
         assert.equal(isSubmitDisabled, false);
     });
@@ -281,49 +281,49 @@ describe("Phase 15 — Loading and Error Rendering", () => {
 describe("Phase 15 — Order Validation Consistency", () => {
     it("should reject empty quantity", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "50000", quantity: "", tif: "GTC", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "", tif: "GTC", gtdDate: "",
         });
         assert.ok(errors.quantity);
     });
 
     it("should reject negative quantity", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "50000", quantity: "-1", tif: "GTC", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "-1", tif: "GTC", gtdDate: "",
         });
         assert.ok(errors.quantity);
     });
 
     it("should reject zero quantity", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "50000", quantity: "0", tif: "GTC", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "0", tif: "GTC", gtdDate: "",
         });
         assert.ok(errors.quantity);
     });
 
     it("should accept valid LIMIT order", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "50000", quantity: "1.5", tif: "GTC", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "1.5", tif: "GTC", gtdDate: "",
         });
         assert.equal(Object.keys(errors).length, 0);
     });
 
     it("should reject LIMIT order without price", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "", quantity: "1.0", tif: "GTC", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "", quantity: "1.0", tif: "GTC", gtdDate: "",
         });
         assert.ok(errors.price);
     });
 
     it("should accept MARKET order without price", () => {
         const errors = validateOrder({
-            side: "SELL", order_type: "MARKET", price: "", quantity: "1.0", tif: "IOC", gtdDate: "",
+            side: "SELL" as any, order_type: "MARKET", price: "", quantity: "1.0", tif: "IOC", gtdDate: "",
         });
         assert.equal(Object.keys(errors).length, 0);
     });
 
     it("should reject GTD without date", () => {
         const errors = validateOrder({
-            side: "BUY", order_type: "LIMIT", price: "50000", quantity: "1.0", tif: "GTD", gtdDate: "",
+            side: "BUY" as any, order_type: "LIMIT", price: "50000", quantity: "1.0", tif: "GTD", gtdDate: "",
         });
         assert.ok(errors.gtd_date);
     });
@@ -520,7 +520,7 @@ describe("Phase 15 — Build Order Request", () => {
         const req = buildCreateOrderRequest({
             accountId: "acct-1",
             symbol: "BTC/USDT",
-            side: "BUY",
+            side: "BUY" as any,
             order_type: "MARKET",
             price: "50000",
             quantity: "1.0",
@@ -534,7 +534,7 @@ describe("Phase 15 — Build Order Request", () => {
         const req = buildCreateOrderRequest({
             accountId: "acct-1",
             symbol: "BTC/USDT",
-            side: "BUY",
+            side: "BUY" as any,
             order_type: "LIMIT",
             price: "50000.50",
             quantity: "1.0",
