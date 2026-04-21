@@ -40,209 +40,209 @@ mod tests {
 
     const TEST_ACCOUNT_ID: &str = "01939d7f-8e4a-7890-a123-456789abcdef";
 
-    fn standard_input() -> MarginPreviewInput {
+    fn standard_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![PositionInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "LONG".to_owned(),
-                size: "2.0".to_owned(),
-                entry_price: "50000".to_owned(),
-                mark_price: "51000".to_owned(),
-                liquidation_price: "49500".to_owned(),
-                initial_margin: "10000".to_owned(),
-                maintenance_margin: "500".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "LONG".into(),
+                size: "2.0".into(),
+                entry_price: "50000".into(),
+                mark_price: "51000".into(),
+                liquidation_price: "49500".into(),
+                initial_margin: "10000".into(),
+                maintenance_margin: "500".into(),
                 leverage: 10,
                 timestamp: 1_708_123_456_789_000_000,
             }],
             order: OrderInput {
-                symbol: "ETH/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "3000".to_owned(),
-                quantity: "10.0".to_owned(),
+                symbol: "ETH/USDT".into(),
+                side: "BUY".into(),
+                price: "3000".into(),
+                quantity: "10.0".into(),
                 leverage: 20,
             },
         }
     }
 
-    fn empty_positions_input() -> MarginPreviewInput {
+    fn empty_positions_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "10000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "10000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "0.1".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "0.1".into(),
                 leverage: 10,
             },
         }
     }
 
-    fn near_liquidation_input() -> MarginPreviewInput {
+    fn near_liquidation_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "600".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "600".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 100,
             },
         }
     }
 
-    fn multi_position_input() -> MarginPreviewInput {
+    fn multi_position_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "50000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "50000".into(),
             positions: vec![
                 PositionInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "LONG".to_owned(),
-                    size: "1.0".to_owned(),
-                    entry_price: "50000".to_owned(),
-                    mark_price: "51000".to_owned(),
-                    liquidation_price: "49500".to_owned(),
-                    initial_margin: "5000".to_owned(),
-                    maintenance_margin: "250".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "LONG".into(),
+                    size: "1.0".into(),
+                    entry_price: "50000".into(),
+                    mark_price: "51000".into(),
+                    liquidation_price: "49500".into(),
+                    initial_margin: "5000".into(),
+                    maintenance_margin: "250".into(),
                     leverage: 10,
                     timestamp: 1_708_123_456_789_000_000,
                 },
                 PositionInput {
-                    symbol: "ETH/USDT".to_owned(),
-                    side: "SHORT".to_owned(),
-                    size: "10.0".to_owned(),
-                    entry_price: "3000".to_owned(),
-                    mark_price: "2900".to_owned(),
-                    liquidation_price: "3100".to_owned(),
-                    initial_margin: "3000".to_owned(),
-                    maintenance_margin: "150".to_owned(),
+                    symbol: "ETH/USDT".into(),
+                    side: "SHORT".into(),
+                    size: "10.0".into(),
+                    entry_price: "3000".into(),
+                    mark_price: "2900".into(),
+                    liquidation_price: "3100".into(),
+                    initial_margin: "3000".into(),
+                    maintenance_margin: "150".into(),
                     leverage: 10,
                     timestamp: 1_708_123_456_789_000_000,
                 },
             ],
             order: OrderInput {
-                symbol: "SOL/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "100".to_owned(),
-                quantity: "10.0".to_owned(),
+                symbol: "SOL/USDT".into(),
+                side: "BUY".into(),
+                price: "100".into(),
+                quantity: "10.0".into(),
                 leverage: 20,
             },
         }
     }
 
-    fn sell_order_input() -> MarginPreviewInput {
+    fn sell_order_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "SELL".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "SELL".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 10,
             },
         }
     }
 
-    fn max_leverage_input() -> MarginPreviewInput {
+    fn max_leverage_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 125,
             },
         }
     }
 
-    fn min_quantity_input() -> MarginPreviewInput {
+    fn min_quantity_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "0.00000001".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "0.00000001".into(),
                 leverage: 10,
             },
         }
     }
 
-    fn high_precision_input() -> MarginPreviewInput {
+    fn high_precision_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "99999999.999999999999999999".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "99999999.999999999999999999".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "SELL".to_owned(),
-                price: "50000.123456789012345678".to_owned(),
-                quantity: "0.123456789012345678".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "SELL".into(),
+                price: "50000.123456789012345678".into(),
+                quantity: "0.123456789012345678".into(),
                 leverage: 10,
             },
         }
     }
 
-    fn tiny_balance_input() -> MarginPreviewInput {
+    fn tiny_balance_input() -> MarginPreviewInput<'static> {
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "1".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "1".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 10,
             },
         }
     }
 
-    fn large_position_count_input() -> MarginPreviewInput {
+    fn large_position_count_input() -> MarginPreviewInput<'static> {
         let positions: Vec<PositionInput> = (0..10)
             .map(|i| PositionInput {
-                symbol: format!("PAIR{i}/USDT"),
-                side: if i % 2 == 0 { "LONG" } else { "SHORT" }.to_owned(),
-                size: "1.0".to_owned(),
-                entry_price: format!("{}", 1000 + i * 500),
-                mark_price: format!("{}", 1010 + i * 500),
-                liquidation_price: format!("{}", 950 + i * 500),
-                initial_margin: "100".to_owned(),
-                maintenance_margin: "5".to_owned(),
+                symbol: format!("PAIR{i}/USDT").into(),
+                side: if i % 2 == 0 { "LONG" } else { "SHORT" }.into(),
+                size: "1.0".into(),
+                entry_price: format!("{}", 1000 + i * 500).into(),
+                mark_price: format!("{}", 1010 + i * 500).into(),
+                liquidation_price: format!("{}", 950 + i * 500).into(),
+                initial_margin: "100".into(),
+                maintenance_margin: "5".into(),
                 leverage: 10,
                 timestamp: 1_708_123_456_789_000_000,
             })
             .collect();
 
         MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "500000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "500000".into(),
             positions,
             order: OrderInput {
-                symbol: "NEW/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "1000".to_owned(),
-                quantity: "5.0".to_owned(),
+                symbol: "NEW/USDT".into(),
+                side: "BUY".into(),
+                price: "1000".into(),
+                quantity: "5.0".into(),
                 leverage: 20,
             },
         }
     }
 
     /// Build a diverse set of valid test vectors for replay / batch testing.
-    fn diverse_test_vectors() -> Vec<MarginPreviewInput> {
+    fn diverse_test_vectors() -> Vec<MarginPreviewInput<'static>> {
         vec![
             standard_input(),
             empty_positions_input(),
@@ -256,161 +256,161 @@ mod tests {
             large_position_count_input(),
             // Variations: different leverages
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "50000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "50000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "50000".to_owned(),
-                    quantity: "0.5".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "50000".into(),
+                    quantity: "0.5".into(),
                     leverage: 1,
                 },
             },
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "50000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "50000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "50000".to_owned(),
-                    quantity: "0.5".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "50000".into(),
+                    quantity: "0.5".into(),
                     leverage: 5,
                 },
             },
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "50000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "50000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "50000".to_owned(),
-                    quantity: "0.5".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "50000".into(),
+                    quantity: "0.5".into(),
                     leverage: 50,
                 },
             },
             // Short with existing long position
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "100000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "100000".into(),
                 positions: vec![PositionInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "LONG".to_owned(),
-                    size: "1.0".to_owned(),
-                    entry_price: "50000".to_owned(),
-                    mark_price: "48000".to_owned(),
-                    liquidation_price: "47000".to_owned(),
-                    initial_margin: "5000".to_owned(),
-                    maintenance_margin: "250".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "LONG".into(),
+                    size: "1.0".into(),
+                    entry_price: "50000".into(),
+                    mark_price: "48000".into(),
+                    liquidation_price: "47000".into(),
+                    initial_margin: "5000".into(),
+                    maintenance_margin: "250".into(),
                     leverage: 10,
                     timestamp: 1_708_123_456_789_000_000,
                 }],
                 order: OrderInput {
-                    symbol: "ETH/USDT".to_owned(),
-                    side: "SELL".to_owned(),
-                    price: "3000".to_owned(),
-                    quantity: "5.0".to_owned(),
+                    symbol: "ETH/USDT".into(),
+                    side: "SELL".into(),
+                    price: "3000".into(),
+                    quantity: "5.0".into(),
                     leverage: 20,
                 },
             },
             // High leverage with small balance
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "100".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "100".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "50000".to_owned(),
-                    quantity: "0.01".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "50000".into(),
+                    quantity: "0.01".into(),
                     leverage: 125,
                 },
             },
             // Large balance with small order
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "10000000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "10000000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "1".to_owned(),
-                    quantity: "1.0".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "1".into(),
+                    quantity: "1.0".into(),
                     leverage: 1,
                 },
             },
             // Various symbols
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "50000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "50000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "DOGE/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "0.10".to_owned(),
-                    quantity: "100000".to_owned(),
+                    symbol: "DOGE/USDT".into(),
+                    side: "BUY".into(),
+                    price: "0.10".into(),
+                    quantity: "100000".into(),
                     leverage: 5,
                 },
             },
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "50000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "50000".into(),
                 positions: vec![],
                 order: OrderInput {
-                    symbol: "XRP/USDT".to_owned(),
-                    side: "SELL".to_owned(),
-                    price: "0.50".to_owned(),
-                    quantity: "10000".to_owned(),
+                    symbol: "XRP/USDT".into(),
+                    side: "SELL".into(),
+                    price: "0.50".into(),
+                    quantity: "10000".into(),
                     leverage: 10,
                 },
             },
             // Position with unrealized loss
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "20000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "20000".into(),
                 positions: vec![PositionInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "LONG".to_owned(),
-                    size: "1.0".to_owned(),
-                    entry_price: "50000".to_owned(),
-                    mark_price: "45000".to_owned(),
-                    liquidation_price: "44000".to_owned(),
-                    initial_margin: "5000".to_owned(),
-                    maintenance_margin: "250".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "LONG".into(),
+                    size: "1.0".into(),
+                    entry_price: "50000".into(),
+                    mark_price: "45000".into(),
+                    liquidation_price: "44000".into(),
+                    initial_margin: "5000".into(),
+                    maintenance_margin: "250".into(),
                     leverage: 10,
                     timestamp: 1_708_123_456_789_000_000,
                 }],
                 order: OrderInput {
-                    symbol: "ETH/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "3000".to_owned(),
-                    quantity: "1.0".to_owned(),
+                    symbol: "ETH/USDT".into(),
+                    side: "BUY".into(),
+                    price: "3000".into(),
+                    quantity: "1.0".into(),
                     leverage: 10,
                 },
             },
             // Short position with profit
             MarginPreviewInput {
-                account_id: TEST_ACCOUNT_ID.to_owned(),
-                total_balance: "30000".to_owned(),
+                account_id: TEST_ACCOUNT_ID.into(),
+                total_balance: "30000".into(),
                 positions: vec![PositionInput {
-                    symbol: "ETH/USDT".to_owned(),
-                    side: "SHORT".to_owned(),
-                    size: "5.0".to_owned(),
-                    entry_price: "3000".to_owned(),
-                    mark_price: "2800".to_owned(),
-                    liquidation_price: "3200".to_owned(),
-                    initial_margin: "1500".to_owned(),
-                    maintenance_margin: "75".to_owned(),
+                    symbol: "ETH/USDT".into(),
+                    side: "SHORT".into(),
+                    size: "5.0".into(),
+                    entry_price: "3000".into(),
+                    mark_price: "2800".into(),
+                    liquidation_price: "3200".into(),
+                    initial_margin: "1500".into(),
+                    maintenance_margin: "75".into(),
                     leverage: 10,
                     timestamp: 1_708_123_456_789_000_000,
                 }],
                 order: OrderInput {
-                    symbol: "BTC/USDT".to_owned(),
-                    side: "BUY".to_owned(),
-                    price: "50000".to_owned(),
-                    quantity: "0.1".to_owned(),
+                    symbol: "BTC/USDT".into(),
+                    side: "BUY".into(),
+                    price: "50000".into(),
+                    quantity: "0.1".into(),
                     leverage: 20,
                 },
             },
@@ -756,14 +756,14 @@ mod tests {
     #[test]
     fn test_p14_boundary_leverage_1x() {
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 1,
             },
         };
@@ -780,14 +780,14 @@ mod tests {
     #[test]
     fn test_p14_boundary_very_small_price() {
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "1000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "1000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "SHIB/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "0.00001".to_owned(),
-                quantity: "10000000".to_owned(),
+                symbol: "SHIB/USDT".into(),
+                side: "BUY".into(),
+                price: "0.00001".into(),
+                quantity: "10000000".into(),
                 leverage: 10,
             },
         };
@@ -809,14 +809,14 @@ mod tests {
         // Price::from_str panics on negative values at the types layer.
         // Verify that both native and boundary paths panic consistently.
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "-50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "-50000".into(),
+                quantity: "1.0".into(),
                 leverage: 10,
             },
         };
@@ -847,14 +847,14 @@ mod tests {
         // Quantity::from_str panics on negative values at the types layer.
         // Verify that both paths panic consistently.
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "-1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "-1.0".into(),
                 leverage: 10,
             },
         };
@@ -884,14 +884,14 @@ mod tests {
         // Leverage 0 causes division by zero in Decimal arithmetic.
         // The margin engine panics on this — verify both paths do so consistently.
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 0,
             },
         };
@@ -935,14 +935,14 @@ mod tests {
     #[test]
     fn test_p14_reject_empty_symbol() {
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 10,
             },
         };
@@ -964,14 +964,14 @@ mod tests {
     #[test]
     fn test_p14_reject_negative_balance() {
         let input = MarginPreviewInput {
-            account_id: TEST_ACCOUNT_ID.to_owned(),
-            total_balance: "-100000".to_owned(),
+            account_id: TEST_ACCOUNT_ID.into(),
+            total_balance: "-100000".into(),
             positions: vec![],
             order: OrderInput {
-                symbol: "BTC/USDT".to_owned(),
-                side: "BUY".to_owned(),
-                price: "50000".to_owned(),
-                quantity: "1.0".to_owned(),
+                symbol: "BTC/USDT".into(),
+                side: "BUY".into(),
+                price: "50000".into(),
+                quantity: "1.0".into(),
                 leverage: 10,
             },
         };
@@ -1172,7 +1172,7 @@ mod tests {
         let mut output = adapter.compute(&standard_input()).unwrap();
 
         // Tamper with equity — should break consistency check
-        output.equity_after = "999999999".to_owned();
+        output.equity_after = "999999999".into();
         assert!(
             validate_output(&output).is_err(),
             "Tampered equity should fail validation"
@@ -1184,7 +1184,7 @@ mod tests {
         let adapter = MarginPreviewAdapter::with_mode(WasmExecutionMode::Native);
         let mut output = adapter.compute(&standard_input()).unwrap();
 
-        output.risk_level = "CriticalMeltdown".to_owned();
+        output.risk_level = "CriticalMeltdown".into();
         assert!(
             validate_output(&output).is_err(),
             "Invalid risk level should fail validation"
@@ -1208,12 +1208,12 @@ mod tests {
         for field in &fields {
             let mut output = base.clone();
             match *field {
-                "equity_after" => output.equity_after = "".to_owned(),
-                "margin_used_after" => output.margin_used_after = "".to_owned(),
-                "margin_available_after" => output.margin_available_after = "".to_owned(),
-                "margin_ratio_after" => output.margin_ratio_after = "".to_owned(),
-                "liquidation_price" => output.liquidation_price = "".to_owned(),
-                "leverage_ratio" => output.leverage_ratio = "".to_owned(),
+                "equity_after" => output.equity_after = "".into(),
+                "margin_used_after" => output.margin_used_after = "".into(),
+                "margin_available_after" => output.margin_available_after = "".into(),
+                "margin_ratio_after" => output.margin_ratio_after = "".into(),
+                "liquidation_price" => output.liquidation_price = "".into(),
+                "leverage_ratio" => output.leverage_ratio = "".into(),
                 _ => unreachable!(),
             }
             assert!(
@@ -1273,34 +1273,34 @@ mod tests {
     fn test_p14_regression_validation_rules_unchanged() {
         // Valid output passes
         let valid = MarginPreviewOutput {
-            equity_after: "102000".to_owned(),
-            margin_used_after: "11500".to_owned(),
-            margin_available_after: "90500".to_owned(),
-            margin_ratio_after: "204".to_owned(),
-            liquidation_price: "2860.50000000".to_owned(),
-            leverage_ratio: "1.27450980".to_owned(),
-            risk_level: "Healthy".to_owned(),
+            equity_after: "102000".into(),
+            margin_used_after: "11500".into(),
+            margin_available_after: "90500".into(),
+            margin_ratio_after: "204".into(),
+            liquidation_price: "2860.50000000".into(),
+            leverage_ratio: "1.27450980".into(),
+            risk_level: "Healthy".into(),
             has_negative_balance: false,
         };
         assert!(validate_output(&valid).is_ok());
 
         // Invalid: empty equity still fails
         let invalid = MarginPreviewOutput {
-            equity_after: "".to_owned(),
+            equity_after: "".into(),
             ..valid.clone()
         };
         assert!(validate_output(&invalid).is_err());
 
         // Invalid: bad risk level still fails
         let invalid2 = MarginPreviewOutput {
-            risk_level: "Unknown".to_owned(),
+            risk_level: "Unknown".into(),
             ..valid.clone()
         };
         assert!(validate_output(&invalid2).is_err());
 
         // Invalid: inconsistent margins still fails
         let invalid3 = MarginPreviewOutput {
-            margin_available_after: "1".to_owned(),
+            margin_available_after: "1".into(),
             ..valid.clone()
         };
         assert!(validate_output(&invalid3).is_err());
