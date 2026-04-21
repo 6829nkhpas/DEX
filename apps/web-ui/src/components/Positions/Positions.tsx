@@ -7,7 +7,7 @@
 
 import React, { useMemo } from "react";
 import Decimal from "decimal.js";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { EmptyState } from "../ui/EmptyState";
 
 // ---------------------------------------------------------------------------
@@ -79,7 +79,9 @@ export function liquidationProximity(
 // ---------------------------------------------------------------------------
 
 export const Positions: React.FC<PositionsProps> = ({ positions = [] }) => {
-    const { state } = useDexStore();
+    const { store } = useDexStore();
+    useAppSelector(state => positions.map(p => state.tickers.get(p.symbol)?.mark_price).join(","));
+    const state = store.getState();
 
     // Enrich positions with live mark price + PnL
     const enriched = useMemo(() => {
