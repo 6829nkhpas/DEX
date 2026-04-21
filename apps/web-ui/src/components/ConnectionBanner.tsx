@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import React from "react";
-import { useDexStore } from "../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../state/StoreProvider";
 import { StatusIndicator } from "./ui/StatusIndicator";
 
 export const ConnectionBanner: React.FC = () => {
