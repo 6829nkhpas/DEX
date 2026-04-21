@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useSyncExternalStore } from "react";
 import { DexStateStore } from "./store";
 import { DexWebSocketClient } from "../ws/ws-client";
 import { StoreState } from "./types";
@@ -7,7 +7,6 @@ import { getConfig } from "../infra/config";
 interface DexContextValue {
     store: DexStateStore;
     client: DexWebSocketClient;
-    state: StoreState;
     connectionStatus: "disconnected" | "connecting" | "connected" | "error";
 }
 
@@ -41,16 +40,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return { store, client };
     }, []);
 
-    // Reactive state
-    const [state, setState] = useState<StoreState>(store.getState());
+    // Reactive Status (State is handled by selectors now)
     const [connectionStatus, setConnectionStatus] = useState<DexContextValue["connectionStatus"]>("disconnected");
 
-    // Establish connection and listen to state changes
+    // Establish connection
     useEffect(() => {
-        // Subscribe to store updates
-        const unsubscribe = store.onStateChange((newState) => {
-            setState({ ...newState });
-        });
 
         // Manage WS connection internally (simulated connection logic for now)
         let mounted = true;
@@ -74,7 +68,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             mounted = false;
-            unsubscribe();
             client.disconnect();
         };
     }, [client, store]);
@@ -82,7 +75,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const value: DexContextValue = {
         store,
         client,
-        state,
         connectionStatus
     };
 
@@ -95,4 +87,16 @@ export function useDexStore(): DexContextValue {
         throw new Error("useDexStore must be used within a StoreProvider");
     }
     return context;
+}
+
+/**
+ * Precision selector hook using useSyncExternalStore.
+ * Prevents cascading React re-renders by only re-rendering when the returned slice changes.
+ */
+export function useAppSelector<T>(selector: (state: StoreState) => T): T {
+    const { store } = useDexStore();
+    return useSyncExternalStore(
+        (listener: () => void) => store.onStateChange(listener),
+        () => selector(store.getState())
+    );
 }
