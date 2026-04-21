@@ -50,11 +50,9 @@ impl MatchingEngine {
     /// This is the main entry point. The order will be matched against
     /// the book and any resulting trades will be returned.
     pub fn submit_order(&mut self, mut order: Order, timestamp: i64) -> Result<SubmitResult, EngineError> {
-        let symbol_key = order.symbol.as_str().to_string();
-        
         // Get or create order book for this symbol
-        if !self.books.contains_key(&symbol_key) {
-            self.books.insert(symbol_key.clone(), OrderBook {
+        if !self.books.contains_key(order.symbol.as_str()) {
+            self.books.insert(order.symbol.as_str().to_string(), OrderBook {
                 symbol: order.symbol.clone(),
                 bids: BidBook::new(),
                 asks: AskBook::new(),
@@ -64,7 +62,7 @@ impl MatchingEngine {
         // Match the order against the book
         // Split borrows: book + executor separately
         let trades = {
-            let book = self.books.get_mut(&symbol_key).unwrap();
+            let book = self.books.get_mut(order.symbol.as_str()).unwrap();
             let executor = &mut self.executor;
             
             match order.side {
@@ -82,7 +80,7 @@ impl MatchingEngine {
             })
         } else {
             // No matches, add to book
-            let book = self.books.get_mut(&symbol_key).unwrap();
+            let book = self.books.get_mut(order.symbol.as_str()).unwrap();
             match order.side {
                 Side::BUY => book.bids.insert(&order),
                 Side::SELL => book.asks.insert(&order),
