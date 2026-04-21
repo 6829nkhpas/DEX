@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useRef, useEffect, useState } from "react";
-import { useDexStore } from "../../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../../state/StoreProvider";
 import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
 interface TickerPanelProps {
@@ -14,8 +14,7 @@ interface TickerPanelProps {
 }
 
 export const TickerPanel: React.FC<TickerPanelProps> = React.memo(({ symbol }) => {
-    const { state } = useDexStore();
-    const ticker = state.tickers.get(symbol);
+    const ticker = useAppSelector(state => state.tickers.get(symbol));
 
     // Track previous price for change indicator
     const prevPriceRef = useRef<string | null>(null);
