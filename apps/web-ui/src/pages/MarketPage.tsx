@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import React, { useState, useEffect, useRef } from "react";
-import { useDexStore } from "../state/StoreProvider";
+import { useDexStore, useAppSelector } from "../state/StoreProvider";
 import { useWallet } from "../wallet/WalletProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { Orderbook } from "../components/Orderbook/Orderbook";
