@@ -443,7 +443,7 @@ impl MarginPreviewAdapter {
         }
 
         // Parse order params
-        let side = match input.order.side.as_str() {
+        let side = match &*input.order.side {
             "BUY" => Side::BUY,
             "SELL" => Side::SELL,
             other => {
@@ -494,7 +494,7 @@ fn parse_native_position(
     account_id: AccountId,
     index: usize,
 ) -> Result<Position, AdapterError> {
-    let side = match input.side.as_str() {
+    let side = match &*input.side {
         "LONG" => PositionSide::LONG,
         "SHORT" => PositionSide::SHORT,
         other => {
@@ -515,7 +515,7 @@ fn parse_native_position(
     let maintenance_margin = Decimal::from_str(&input.maintenance_margin)
         .map_err(|e| native_pos_error(index, "maintenance_margin", &e))?;
 
-    let market_id = types::ids::MarketId::new(&input.symbol);
+    let market_id = types::ids::MarketId::new(&*input.symbol);
 
     Ok(Position::new(
         account_id,
