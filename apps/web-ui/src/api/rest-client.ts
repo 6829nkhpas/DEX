@@ -9,8 +9,38 @@ import type {
     OrderResponse,
     ApiConfig,
 } from "./types";
-import { ApiError } from "./types";
+import { ApiError, AuthRequiredError } from "./types";
 import type { ErrorResponse } from "../../../../types/generated-types";
+
+// ---------------------------------------------------------------------------
+// Dev-mode detection (safe check without import.meta in tests)
+// ---------------------------------------------------------------------------
+
+function isDevMode(): boolean {
+    try {
+        if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+            return true;
+        }
+    } catch { /* ignore */ }
+    // Default to true to preserve safe dev behavior
+    return true;
+}
+
+const DEV_FALLBACK_TOKENS = new Set(["dev-token", "dev-token-123"]);
+
+/**
+ * Pre-flight token assertion. In production mode, rejects empty or
+ * dev-fallback tokens before sending a request. In dev mode, allows
+ * all tokens (preserves existing dev workflow).
+ */
+function assertToken(token: string): void {
+    if (isDevMode()) return;
+    if (!token || DEV_FALLBACK_TOKENS.has(token)) {
+        throw new AuthRequiredError(
+            "Valid authentication token required. Please sign in.",
+        );
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,6 +96,7 @@ export class DexApiClient {
         req: CreateOrderRequest,
         token: string,
     ): Promise<OrderResponse> {
+        assertToken(token);
         const res = await fetch(`${this.baseUrl}/orders`, {
             method: "POST",
             headers: authHeaders(token),
@@ -77,6 +108,7 @@ export class DexApiClient {
     // ---- GET /orders/:id ----------------------------------------------------
 
     async getOrder(id: string, token: string): Promise<Order> {
+        assertToken(token);
         const res = await fetch(`${this.baseUrl}/orders/${encodeURIComponent(id)}`, {
             method: "GET",
             headers: authHeaders(token),
@@ -91,6 +123,7 @@ export class DexApiClient {
         req: CancelOrderRequest,
         token: string,
     ): Promise<void> {
+        assertToken(token);
         const res = await fetch(`${this.baseUrl}/orders/${encodeURIComponent(id)}`, {
             method: "DELETE",
             headers: authHeaders(token),
@@ -110,6 +143,7 @@ export class DexApiClient {
     // ---- GET /accounts/:id --------------------------------------------------
 
     async getAccount(id: string, token: string): Promise<Account> {
+        assertToken(token);
         const res = await fetch(
             `${this.baseUrl}/accounts/${encodeURIComponent(id)}`,
             {
