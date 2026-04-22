@@ -546,10 +546,13 @@ describe("Error session recovery — expired session on reconnect", () => {
 
     test("expired session is cleared when wallet reconnects with same address", () => {
         const address = "0xWallet0000000000000000000000000000000001";
-        // Store an expired session
+        // Store an expired session (structurally valid: issuedAt < expiresAt, but both in the past)
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
         const expired = freshSession({
             address,
-            expiresAt: new Date(Date.now() - 5000).toISOString(),
+            issuedAt: twoHoursAgo,
+            expiresAt: oneHourAgo,
         });
         persistSession(expired);
 
