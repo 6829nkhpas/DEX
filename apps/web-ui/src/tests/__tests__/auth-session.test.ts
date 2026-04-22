@@ -322,9 +322,14 @@ describe("Session restore", () => {
 
   test("expired session in storage is rejected on mount", () => {
     const address = "0xWalletAddress";
+    // Create a structurally valid session that has expired:
+    // issuedAt is 2 hours ago, expiresAt is 1 hour ago (still issuedAt < expiresAt)
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
     const expired = makeSession({
       address,
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      issuedAt: twoHoursAgo,
+      expiresAt: oneHourAgo,
     });
     persistSession(expired);
 
