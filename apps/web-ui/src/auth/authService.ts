@@ -36,8 +36,43 @@ export interface AuthSession {
 // Session TTL
 // ---------------------------------------------------------------------------
 
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const STORAGE_KEY = "dex_auth_session_v1";
+
+// ---------------------------------------------------------------------------
+// Nonce-used tracking (replay prevention)
+// ---------------------------------------------------------------------------
+//
+// In-memory set of nonces consumed during this page lifecycle.
+// Prevents reuse of a nonce within the same tab. The set is cleared
+// on signOut/disconnect so it never grows beyond ~5 entries in practice.
+// ---------------------------------------------------------------------------
+
+const usedNonces = new Set<string>();
+
+/**
+ * Returns true if the nonce has NOT been used before in this session.
+ * On success, marks the nonce as used.
+ */
+export function consumeNonce(nonce: string): boolean {
+  if (usedNonces.has(nonce)) return false;
+  usedNonces.add(nonce);
+  return true;
+}
+
+/**
+ * Check if a nonce has already been used (without consuming it).
+ */
+export function isNonceUsed(nonce: string): boolean {
+  return usedNonces.has(nonce);
+}
+
+/**
+ * Clear the used-nonce set. Called on signOut / disconnect.
+ */
+export function clearUsedNonces(): void {
+  usedNonces.clear();
+}
 
 // ---------------------------------------------------------------------------
 // Nonce generation
@@ -122,6 +157,43 @@ export function createSession(
 }
 
 // ---------------------------------------------------------------------------
+// Session structural validation (type-guard)
+// ---------------------------------------------------------------------------
+
+/**
+ * Runtime type-guard: validates that `value` is a structurally valid AuthSession.
+ * Checks field types, nonce length, and ISO 8601 timestamp sanity.
+ * Does NOT check expiry — use `isSessionValid()` for that.
+ */
+export function isSessionStructurallyValid(
+  value: unknown,
+): value is AuthSession {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+
+  // All required string fields present
+  if (typeof obj.address !== "string" || obj.address.length === 0) return false;
+  if (typeof obj.signature !== "string" || obj.signature.length === 0) return false;
+  if (typeof obj.nonce !== "string" || obj.nonce.length !== 64) return false;
+  if (typeof obj.issuedAt !== "string") return false;
+  if (typeof obj.expiresAt !== "string") return false;
+  if (typeof obj.accountId !== "string" || obj.accountId.length === 0) return false;
+
+  // Nonce must be hex
+  if (!/^[0-9a-f]{64}$/.test(obj.nonce as string)) return false;
+
+  // Timestamps must parse to valid dates
+  const issuedMs = new Date(obj.issuedAt as string).getTime();
+  const expiresMs = new Date(obj.expiresAt as string).getTime();
+  if (!Number.isFinite(issuedMs) || !Number.isFinite(expiresMs)) return false;
+
+  // expiresAt must be after issuedAt
+  if (expiresMs <= issuedMs) return false;
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Session validation
 // ---------------------------------------------------------------------------
 
@@ -159,23 +231,17 @@ export function persistSession(session: AuthSession): void {
 
 /**
  * Load a previously persisted session from sessionStorage.
- * Returns null if no session exists, the data is corrupt, or any other error.
+ * Returns null if no session exists, the data is corrupt, or fails
+ * structural validation (malformed dates, short nonces, etc.).
  */
 export function loadSession(): AuthSession | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<AuthSession>;
-    // Minimal shape guard
-    if (
-      typeof parsed.address === "string" &&
-      typeof parsed.signature === "string" &&
-      typeof parsed.nonce === "string" &&
-      typeof parsed.issuedAt === "string" &&
-      typeof parsed.expiresAt === "string" &&
-      typeof parsed.accountId === "string"
-    ) {
-      return parsed as AuthSession;
+    const parsed: unknown = JSON.parse(raw);
+    // Use structural type-guard for thorough validation
+    if (isSessionStructurallyValid(parsed)) {
+      return parsed;
     }
     return null;
   } catch {
@@ -184,7 +250,7 @@ export function loadSession(): AuthSession | null {
 }
 
 /**
- * Remove the session from sessionStorage. Idempotent.
+ * Remove the session from sessionStorage and clear nonce tracking. Idempotent.
  */
 export function clearSession(): void {
   try {
@@ -192,4 +258,5 @@ export function clearSession(): void {
   } catch {
     // Ignore
   }
+  clearUsedNonces();
 }
