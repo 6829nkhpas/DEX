@@ -796,11 +796,9 @@ describe("Phase 16 — Auth session edge cases", () => {
         mockStorage.setItem("dex_auth_session_v1", JSON.stringify({
             address: "", signature: "sig", nonce: "n", issuedAt: "t", expiresAt: "t", accountId: "a",
         }));
-        // Empty address should still load (shape guard passes), but isSessionValid would reject
+        // Phase 19: structural validator rejects empty address, short nonce, and invalid dates
         const loaded = loadSession();
-        // The shape guard checks typeof === "string", empty string passes
-        assert.ok(loaded !== null);
-        assert.equal(loaded.address, "");
+        assert.equal(loaded, null);
     });
 
     test("session with non-ISO expiresAt is handled by isSessionValid", () => {
