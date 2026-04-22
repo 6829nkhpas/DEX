@@ -62,3 +62,14 @@ export class ApiError extends Error {
         this.name = "ApiError";
     }
 }
+
+/**
+ * Thrown when a REST call is attempted without valid authentication.
+ * Prevents sending unauthenticated requests to the gateway.
+ */
+export class AuthRequiredError extends Error {
+    constructor(message = "Authentication required. Please sign in.") {
+        super(message);
+        this.name = "AuthRequiredError";
+    }
+}

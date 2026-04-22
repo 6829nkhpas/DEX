@@ -50,6 +50,8 @@ export interface WalletContextValue {
   address: string | null;
   /** Deterministic account_id derived from address, or null. */
   accountId: string | null;
+  /** Current chain ID (hex string, e.g. "0x1"), or null if unknown. */
+  chainId: string | null;
   /** True while a connect() call is in-flight. */
   isConnecting: boolean;
   /**
@@ -139,6 +141,7 @@ function fallbackDeriveId(input: string): string {
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [chainId, setChainId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -182,9 +185,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const handleChainChanged = (newChainId: unknown) => {
+      setChainId(String(newChainId));
+      // Reset signing guard: chain switch during in-flight sign leaves it stuck
+      signingInFlightRef.current = false;
+    };
+
     provider.on("accountsChanged", handleAccountsChanged);
+    provider.on("chainChanged", handleChainChanged);
     return () => {
       provider.removeListener("accountsChanged", handleAccountsChanged);
+      provider.removeListener("chainChanged", handleChainChanged);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
@@ -195,6 +206,37 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setIsReconnecting(false);
     }
   }, [isReconnecting, accountId]);
+
+  // -------------------------------------------------------------------------
+  // Stale-tab detection: verify account on tab re-focus
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState !== "visible") return;
+      const provider = window.ethereum;
+      if (!provider || !address) return;
+      try {
+        const accounts = (await provider.request({
+          method: "eth_accounts",
+        })) as string[];
+        if (accounts.length === 0) {
+          // Wallet disconnected while tab was hidden
+          setAddress(null);
+          setConnectionError(null);
+        } else if (accounts[0].toLowerCase() !== address.toLowerCase()) {
+          // Account changed while tab was hidden
+          setIsReconnecting(true);
+          setAddress(accounts[0]);
+          setConnectionError(null);
+        }
+      } catch {
+        // eth_accounts failed — ignore; next interaction will surface the issue
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [address]);
 
   const connect = useCallback(async () => {
     // Prevent double-connect while already connecting
@@ -227,6 +269,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const disconnect = useCallback(() => {
     setAddress(null);
     setAccountId(null);
+    setChainId(null);
     setConnectionError(null);
     setIsReconnecting(false);
     // Reset in-flight sign guard
@@ -263,6 +306,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     () => ({
       address,
       accountId,
+      chainId,
       isConnecting,
       isReconnecting,
       connectionError,
@@ -270,7 +314,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       signMessage,
     }),
-    [address, accountId, isConnecting, isReconnecting, connectionError, connect, disconnect, signMessage],
+    [address, accountId, chainId, isConnecting, isReconnecting, connectionError, connect, disconnect, signMessage],
   );
 
   return (

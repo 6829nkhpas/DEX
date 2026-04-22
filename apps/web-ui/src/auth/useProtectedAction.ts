@@ -20,6 +20,8 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
+import { useWallet } from "../wallet/WalletProvider";
+import { isSessionValid } from "./authService";
 import {
   defaultRateLimiterRegistry,
   RateLimitError,
@@ -55,7 +57,8 @@ export function useProtectedAction(
   fn: () => Promise<void>,
   limiterConfig?: Partial<RateLimiterConfig>,
 ): UseProtectedActionResult {
-  const { authStatus } = useAuth();
+  const { authStatus, session } = useAuth();
+  const { address } = useWallet();
   const inFlightRef = useRef(false);
 
   const [rateLimitedError, setRateLimitedError] = useState<RateLimitError | null>(null);
@@ -75,6 +78,12 @@ export function useProtectedAction(
     // Belt-and-suspenders auth check at call time
     if (authStatus !== "authenticated") {
       logger.warn(`useProtectedAction: blocked — not authenticated`, { action: actionName });
+      return;
+    }
+
+    // Real-time session validity check (catches expiry between poll ticks)
+    if (session && address && !isSessionValid(session, address)) {
+      logger.warn(`useProtectedAction: blocked — session expired or address mismatch`, { action: actionName });
       return;
     }
 
@@ -108,7 +117,7 @@ export function useProtectedAction(
       inFlightRef.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, actionName, limiter, fn]);
+  }, [authStatus, session, address, actionName, limiter, fn]);
 
   return { execute, isDisabled, rateLimitedError, lastError };
 }
