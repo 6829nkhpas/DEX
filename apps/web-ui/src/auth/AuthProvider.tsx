@@ -34,6 +34,7 @@ import {
     persistSession,
     loadSession,
     clearSession,
+    consumeNonce,
     type AuthSession,
 } from "./authService";
 import {
@@ -95,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Track the address that our current session was signed for.
     // Used to detect account changes.
     const sessionAddressRef = useRef<string | null>(null);
+
+    // Re-entrancy guard: prevents two concurrent signIn() flows.
+    const signingInProgressRef = useRef(false);
 
     // -------------------------------------------------------------------------
     // Internal helpers
@@ -202,6 +206,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        // ---- Re-entrancy guard: block concurrent signIn flows ----
+        if (signingInProgressRef.current) {
+            logger.warn("AuthProvider.signIn: blocked — already in progress");
+            return;
+        }
+
         // ---- Rate limit check: max 5 sign-in attempts per 60 seconds ----
         const signInLimiter = defaultRateLimiterRegistry.getOrCreate(
             "authSignIn",
@@ -223,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setError(null);
         setAuthStatus("signing");
+        signingInProgressRef.current = true;
         logger.info("AuthProvider.signIn: initiating sign-in", { address });
 
         try {
@@ -231,6 +242,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const message = buildLoginMessage(address, nonce, issuedAt);
 
             const signature = await signMessage(message);
+
+            // Mark nonce as consumed (replay prevention)
+            consumeNonce(nonce);
 
             const newSession = createSession(
                 address,
@@ -256,6 +270,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setError(isRejection ? "Signature request was rejected." : `Sign-in failed: ${msg}`);
             setAuthStatus(isRejection ? "rejected" : "connected");
             logger.warn("AuthProvider.signIn: failed", { isRejection, error: msg });
+        } finally {
+            signingInProgressRef.current = false;
         }
     }, [address, accountId, signMessage]);
 
@@ -268,14 +284,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (authStatus !== "authenticated" || !session || !address) return;
 
-        const POLL_MS = 60_000;
+        // Poll every 30s for session expiry
+        const POLL_MS = 30_000;
         const timer = setInterval(() => {
             if (!isSessionValid(session, address)) {
                 doSignOut("expired");
             }
         }, POLL_MS);
 
-        return () => clearInterval(timer);
+        // Also check immediately on tab re-focus (stale-tab recovery)
+        const handleVisibility = () => {
+            if (document.visibilityState !== "visible") return;
+            if (!isSessionValid(session, address)) {
+                doSignOut("expired");
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
     }, [authStatus, session, address, doSignOut]);
 
     // -------------------------------------------------------------------------
