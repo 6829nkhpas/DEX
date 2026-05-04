@@ -11,6 +11,7 @@ mod tests {
     use reqwest::Client;
     use std::sync::Arc;
     use tokio::net::TcpListener;
+    use types::ids::AccountId;
 
     async fn spawn_mock_internal_server() -> String {
         let app = Router::new()
@@ -82,9 +83,9 @@ mod tests {
     }
 
     fn create_mock_user(account_id: &str) -> AuthenticatedUser {
+        let account_id_typed: AccountId = account_id.parse().unwrap_or_else(|_| AccountId::new());
         AuthenticatedUser {
-            account_id: account_id.to_string(),
-            role: "user".to_string(),
+            account_id: account_id_typed,
         }
     }
 
@@ -97,8 +98,8 @@ mod tests {
         let res = order::get_order(axum::extract::State(state.clone()), user, axum::extract::Path("valid-order-id".to_string())).await;
         assert!(res.is_ok());
         let order = res.unwrap().0;
-        assert_eq!(order.account_id, "valid-acc");
-        assert_eq!(order.symbol, "BTC/USDT");
+        assert_eq!(order.account_id.to_string(), "valid-acc");
+        assert_eq!(order.symbol.to_string(), "BTC/USDT");
     }
 
     #[tokio::test]
@@ -134,7 +135,7 @@ mod tests {
         let res = account::get_account(axum::extract::State(state.clone()), user, axum::extract::Path("valid-acc".to_string())).await;
         assert!(res.is_ok());
         let account = res.unwrap().0;
-        assert_eq!(account.account_id, "valid-acc");
+        assert_eq!(account.account_id.to_string(), "valid-acc");
     }
 
     #[tokio::test]
