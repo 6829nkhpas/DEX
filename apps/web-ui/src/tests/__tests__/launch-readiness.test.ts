@@ -72,8 +72,10 @@ function freshSession(overrides: Partial<AuthSession> = {}): AuthSession {
 }
 
 function expiredSession(overrides: Partial<AuthSession> = {}): AuthSession {
+  const nowMs = Date.now();
   return freshSession({
-    expiresAt: new Date(Date.now() - 1000).toISOString(),
+    issuedAt: new Date(nowMs - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    expiresAt: new Date(nowMs - 60 * 60 * 1000).toISOString(),    // 1 hour ago (expired)
     ...overrides,
   });
 }
