@@ -6,6 +6,9 @@ mod rate_limit;
 mod router;
 mod state;
 
+#[cfg(test)]
+mod api_tests;
+
 use router::create_router;
 use state::AppState;
 use std::net::SocketAddr;
