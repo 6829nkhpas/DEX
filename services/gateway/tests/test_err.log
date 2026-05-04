@@ -1,0 +1,236 @@
+warning: unused variable: `timestamp`
+   --> /home/nkh/finalyearproject/libs/types/src/order.rs:230:41
+    |
+230 | ...ectReason, timestamp: i64) -> OrderSta...
+    |               ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timestamp`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `types` (lib) generated 1 warning
+   Compiling gateway v0.1.0 (/home/nkh/finalyearproject/services/gateway)
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+ --> tests/api_tests.rs:5:5
+  |
+5 | use gateway::auth::AuthenticatedUser;
+  |     ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+  |
+  = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+ --> tests/api_tests.rs:6:5
+  |
+6 | use gateway::state::AppState;
+  |     ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+  |
+  = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+ --> tests/api_tests.rs:7:5
+  |
+7 | use gateway::rate_limit::RateLimiter;
+  |     ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+  |
+  = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+ --> tests/api_tests.rs:8:5
+  |
+8 | use gateway::handlers::{order, account};
+  |     ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+  |
+  = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved imports `types::order::OrderSide`, `types::order::OrderType`
+  --> tests/api_tests.rs:13:27
+   |
+13 | use types::order::{Order, OrderSide, OrderType, OrderStatus};
+   |                           ^^^^^^^^^  ^^^^^^^^^ no `OrderType` in `order`
+   |                           |
+   |                           no `OrderSide` in `order`
+   |                           help: a similar name exists in the module: `OrderId`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+   --> tests/api_tests.rs:127:27
+    |
+127 |     assert!(matches!(err, gateway::error::AppError::NotFound(_)));
+    |                           ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+    |
+    = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+   --> tests/api_tests.rs:139:27
+    |
+139 |     assert!(matches!(err, gateway::error::AppError::Unauthorized(_)));
+    |                           ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+    |
+    = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `gateway`
+   --> tests/api_tests.rs:163:27
+    |
+163 |     assert!(matches!(err, gateway::error::AppError::Unauthorized(_)));
+    |                           ^^^^^^^ use of unresolved module or unlinked crate `gateway`
+    |
+    = help: if you wanted to use a crate named `gateway`, use `cargo add gateway` to add it to your `Cargo.toml`
+
+warning: unused import: `Json`
+ --> tests/api_tests.rs:3:13
+  |
+3 |     Router, Json, extract::Path,
+  |             ^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `types::account::Account`
+  --> tests/api_tests.rs:12:5
+   |
+12 | use types::account::Account;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `OrderStatus`
+  --> tests/api_tests.rs:13:49
+   |
+13 | use types::order::{Order, OrderSide, OrderType, OrderStatus};
+   |                                                 ^^^^^^^^^^^
+
+warning: unused import: `types::ids::OrderId`
+  --> tests/api_tests.rs:14:5
+   |
+14 | use types::ids::OrderId;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+error[E0061]: this function takes 7 arguments but 6 arguments were supplied
+   --> tests/api_tests.rs:22:33
+    |
+22  |                   let mut order = Order::new(
+    |  _________________________________^^^^^^^^^^-
+23  | |                     "valid-acc",
+    | |                     ----------- expected `AccountId`, found `&str`
+24  | |                     "BTC/USDT",
+    | |                     ---------- expected `MarketId`, found `&str`
+25  | |                     OrderSide::Buy,
+26  | |                     OrderType::Limit,
+27  | |                     Decimal::from_str("1000").unwrap(),
+    | |                     ---------------------------------- expected `Quantity`, found `Decimal`
+28  | |                     Some(Decimal::from_str("50000").unwrap()),
+29  | |                 );
+    | |_________________- argument #7 of type `i64` is missing
+    |
+note: expected `TimeInForce`, found `Option<Decimal>`
+   --> tests/api_tests.rs:28:21
+    |
+28  |                     Some(Decimal::from_str("50000").unwrap()),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: expected enum `TimeInForce`
+               found enum `Option<rust_decimal::Decimal>`
+note: associated function defined here
+   --> /home/nkh/finalyearproject/libs/types/src/order.rs:145:12
+    |
+145 |     pub fn new(
+    |            ^^^
+help: call `Into::into` on this expression to convert `&'static str` into `MarketId`
+    |
+24  |                     "BTC/USDT".into(),
+    |                               +++++++
+help: provide the argument
+    |
+22  -                 let mut order = Order::new(
+23  -                     "valid-acc",
+24  -                     "BTC/USDT",
+25  -                     OrderSide::Buy,
+26  -                     OrderType::Limit,
+27  -                     Decimal::from_str("1000").unwrap(),
+28  -                     Some(Decimal::from_str("50000").unwrap()),
+29  -                 );
+22  +                 let mut order = Order::new(/* AccountId */, /* MarketId */, OrderSide::Buy, OrderType::Limit, /* Quantity */, /* TimeInForce */, /* i64 */);
+    |
+
+error[E0599]: no method named `into_response` found for tuple `(StatusCode, axum::Json<Value>)` in the current scope
+   --> tests/api_tests.rs:46:70
+    |
+46  |                 (axum::http::StatusCode::OK, axum::Json(order_json)).into_response()
+    |                                                                      ^^^^^^^^^^^^^ method not found in `(StatusCode, axum::Json<Value>)`
+    |
+   ::: /home/nkh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-core-0.5.6/src/response/into_response.rs:115:8
+    |
+115 |     fn into_response(self) -> Response;
+    |        ------------- the method is available for `(StatusCode, axum::Json<Value>)` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use axum::response::IntoResponse;
+    |
+
+error[E0599]: no method named `into_response` found for tuple `(StatusCode, axum::Json<Value>)` in the current scope
+   --> tests/api_tests.rs:61:70
+    |
+61  |                 (axum::http::StatusCode::OK, axum::Json(order_json)).into_response()
+    |                                                                      ^^^^^^^^^^^^^ method not found in `(StatusCode, axum::Json<Value>)`
+    |
+   ::: /home/nkh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-core-0.5.6/src/response/into_response.rs:115:8
+    |
+115 |     fn into_response(self) -> Response;
+    |        ------------- the method is available for `(StatusCode, axum::Json<Value>)` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use axum::response::IntoResponse;
+    |
+
+error[E0599]: no method named `into_response` found for tuple `(StatusCode, &'static str)` in the current scope
+   --> tests/api_tests.rs:63:66
+    |
+63  |                 (axum::http::StatusCode::NOT_FOUND, "Not found").into_response()
+    |                                                                  ^^^^^^^^^^^^^ method not found in `(StatusCode, &'static str)`
+    |
+   ::: /home/nkh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-core-0.5.6/src/response/into_response.rs:115:8
+    |
+115 |     fn into_response(self) -> Response;
+    |        ------------- the method is available for `(StatusCode, &'static str)` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use axum::response::IntoResponse;
+    |
+
+error[E0599]: no method named `into_response` found for tuple `(StatusCode, axum::Json<Value>)` in the current scope
+   --> tests/api_tests.rs:75:68
+    |
+75  |                 (axum::http::StatusCode::OK, axum::Json(acc_json)).into_response()
+    |                                                                    ^^^^^^^^^^^^^ method not found in `(StatusCode, axum::Json<Value>)`
+    |
+   ::: /home/nkh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-core-0.5.6/src/response/into_response.rs:115:8
+    |
+115 |     fn into_response(self) -> Response;
+    |        ------------- the method is available for `(StatusCode, axum::Json<Value>)` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use axum::response::IntoResponse;
+    |
+
+error[E0599]: no method named `into_response` found for tuple `(StatusCode, &'static str)` in the current scope
+   --> tests/api_tests.rs:77:66
+    |
+77  |                 (axum::http::StatusCode::NOT_FOUND, "Not found").into_response()
+    |                                                                  ^^^^^^^^^^^^^ method not found in `(StatusCode, &'static str)`
+    |
+   ::: /home/nkh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-core-0.5.6/src/response/into_response.rs:115:8
+    |
+115 |     fn into_response(self) -> Response;
+    |        ------------- the method is available for `(StatusCode, &'static str)` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `IntoResponse` which provides `into_response` is implemented but not in scope; perhaps you want to import it
+    |
+1   + use axum::response::IntoResponse;
+    |
+
+Some errors have detailed explanations: E0061, E0432, E0433, E0599.
+For more information about an error, try `rustc --explain E0061`.
+warning: `gateway` (test "api_tests") generated 4 warnings
+error: could not compile `gateway` (test "api_tests") due to 14 previous errors; 4 warnings emitted
