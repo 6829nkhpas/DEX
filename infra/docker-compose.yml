@@ -135,7 +135,7 @@ services:
     image: grafana/grafana:10.4.0
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     networks:
       - dex-internal
     volumes:

@@ -23,3 +23,9 @@ pub struct OrderResponse {
 pub struct CancelOrderRequest {
     pub account_id: AccountId,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountResponse {
+    pub account_id: String,
+    pub balances: std::collections::HashMap<String, String>,
+}

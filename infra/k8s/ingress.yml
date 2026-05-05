@@ -46,7 +46,7 @@ spec:
     - host: ws.dex.exchange
       http:
         paths:
-          - path: /ws
+          - path: /v1/ws
             pathType: Prefix
             backend:
               service:

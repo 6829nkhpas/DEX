@@ -1,4 +1,4 @@
-use crate::handlers::{account, order, ws};
+use crate::handlers::{account, order, system, ws};
 use crate::state::AppState;
 use axum::{
     routing::{get, post},
@@ -10,11 +10,14 @@ use tower_http::trace::TraceLayer;
 pub fn create_router(state: AppState) -> Router {
     let api_routes = Router::new()
         .route("/orders", post(order::create_order))
-        .route("/orders/:id", get(order::get_order).delete(order::cancel_order))
-        .route("/accounts/:id", get(account::get_account))
+        .route("/orders/{id}", get(order::get_order).delete(order::cancel_order))
+        .route("/accounts/{id}", get(account::get_account))
         .route("/ws", get(ws::ws_handler));
 
     Router::new()
+        .route("/health", get(system::health))
+        .route("/readyz", get(system::ready))
+        .route("/metrics", get(system::metrics))
         .nest("/v1", api_routes)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())

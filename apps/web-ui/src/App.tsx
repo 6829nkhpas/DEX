@@ -14,9 +14,13 @@ import { MarketPage } from "./pages/MarketPage";
 import { RiskPage } from "./pages/RiskPage";
 
 function MockEventSimulation() {
-    const { store } = useDexStore();
+    const { store, connectionStatus } = useDexStore();
 
     useEffect(() => {
+        if (connectionStatus === "connected") {
+            return;
+        }
+
         let seq = 1;
 
         const timer1 = setTimeout(() => {
@@ -128,7 +132,7 @@ function MockEventSimulation() {
         }, 1000);
 
         return () => clearTimeout(timer1);
-    }, [store]);
+    }, [store, connectionStatus]);
 
     return null;
 }
